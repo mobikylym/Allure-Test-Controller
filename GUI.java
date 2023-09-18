@@ -142,7 +142,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
         includeTimers.setSelected(((AllureTestController) el).isIncludeTimers());
     }
 
-    @Override
+    @Override //-----------------------------------------------------Доделать
     public void modifyTestElement(TestElement el) {
         configureTestElement(el);
         ((AllureTestController) el).setGenerateParentSample(generateParentSample.isSelected());
