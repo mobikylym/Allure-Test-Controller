@@ -42,6 +42,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     private JRadioButton normal; //Severity
     private JRadioButton minor; //Severity
     private JRadioButton trivial; //Severity
+    private ButtonGroup group;
     private JTextField testName; //Test
     private JTextField description; //Description
     private JTextField epic; //Epic
@@ -122,6 +123,11 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     }
 
     @Override
+    public String getLabelResource() {
+        return getClass().getCanonicalName();
+    }
+
+    @Override
     public TestElement createTestElement() {
         AllureTestController lc = new AllureTestController();
         lc.setIncludeTimers(false); // change default for new test elements
@@ -135,6 +141,41 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
         initFields();
     }
 
+    private JPanel makeSeverityPanel() {
+        JPanel panel = new JPanel();
+        panel.setBorder(BorderFactory.createTitledBorder("Choose severity:")); //$NON-NLS-1$
+
+        blocker = new JRadioButton("Blocker"); //$NON-NLS-1$
+        critical = new JRadioButton("Critical"); //$NON-NLS-1$
+        normal = new JRadioButton("Normal"); //$NON-NLS-1$
+        minor = new JRadioButton("Minor"); //$NON-NLS-1$
+        trivial = new JRadioButton("Trivial"); //$NON-NLS-1$
+
+        group = new ButtonGroup();
+        group.add(blocker);
+        group.add(critical);
+        group.add(normal);
+        group.add(minor);
+        group.add(trivial);
+
+        panel.add(blocker);
+        panel.add(critical);
+        panel.add(normal);
+        panel.add(minor);
+        panel.add(trivial);
+
+        normal.setSelected(true);
+
+        // So we know which button is selected
+        blocker.setActionCommand(RegexExtractor.USE_BLOCKER);
+        critical.setActionCommand(RegexExtractor.USE_CRITICAL);
+        normal.setActionCommand(RegexExtractor.USE_NORMAL);
+        minor.setActionCommand(RegexExtractor.USE_MINOR);
+        trivial.setActionCommand(RegexExtractor.USE_TRIVIAL);
+
+        return panel;
+    }
+
     @Override //-----------------------------------------------------Доделать
     public void configure(TestElement el) {
         super.configure(el);
@@ -143,18 +184,22 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     }
 
     @Override //-----------------------------------------------------Доделать
-    public void modifyTestElement(TestElement el) {
-        configureTestElement(el);
-        ((AllureTestController) el).setGenerateParentSample(generateParentSample.isSelected());
-        AllureTestController ac = (AllureTestController) el;
-        ac.setGenerateParentSample(generateParentSample.isSelected());
-        ac.setIncludeTimers(includeTimers.isSelected());
+    public void modifyTestElement(TestElement te) {
+        super.configureTestElement(te);
+        if (te instanceof AllureTestController) {
+            AllureTestController atc = (AllureTestController) te;
+            saveScopeSettings(atc);
+            atc.setPathToResults(pathToResults.getText());
+            atc.setFolderOverwrite(folderOverwrite.isSelected());
+            atc.setIsSingleStep(isSingleStep.isSelected());
+            atc.setIsCritical(isCritical.isSelected());
+            atc.setUseField(group.getSelection().getActionCommand()); //Создать панель (group)
+            atc.setFileHeader(header.getText());
+            atc.setFileFooter(footer.getText());
+        }
     }
 
-    @Override
-    public String getLabelResource() {
-        return getClass().getCanonicalName();
-    }
+    
 
     /**
      * Initialize the GUI components and layout for this component.
