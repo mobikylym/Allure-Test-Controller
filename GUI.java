@@ -241,6 +241,8 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
                 description.setEnabled(true);
             }
         });
+
+        return panel;
     }
 
     @Override //-----------------------------------------------------Доделать
