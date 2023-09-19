@@ -1,6 +1,8 @@
 package org.apache.jmeter.control.gui;
 
 import java.util.List;
+import java.io.File;
+
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -9,11 +11,11 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.ClipboardOwner;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
+import java.awt.event.*;
+
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
@@ -28,10 +30,14 @@ import org.apache.jmeter.control.AllureTestController;
 import org.apache.jmeter.gui.util.CheckBoxPanel;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jmeter.visualizers.gui.AbstractListenerGui;
 import org.apache.jorphan.gui.JLabeledTextField;
 import org.apache.jorphan.gui.layout.VerticalLayout;
 import org.apache.jorphan.gui.ObjectTableModel;
 
+import kg.apc.jmeter.JMeterPluginsUtils;
+import kg.apc.jmeter.gui.BrowseAction;
+import kg.apc.jmeter.gui.GuiBuilderHelper;
 
 /**
  * A Allure test controller component.
@@ -168,13 +174,13 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
 
     private JPanel makeSeverityPanel() {
         JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createTitledBorder("Choose severity:")); //$NON-NLS-1$
+        panel.setBorder(BorderFactory.createTitledBorder("Choose severity:"));
 
-        blocker = new JRadioButton("Blocker"); //$NON-NLS-1$
-        critical = new JRadioButton("Critical"); //$NON-NLS-1$
-        normal = new JRadioButton("Normal"); //$NON-NLS-1$
-        minor = new JRadioButton("Minor"); //$NON-NLS-1$
-        trivial = new JRadioButton("Trivial"); //$NON-NLS-1$
+        blocker = new JRadioButton("Blocker");
+        critical = new JRadioButton("Critical");
+        normal = new JRadioButton("Normal");
+        minor = new JRadioButton("Minor");
+        trivial = new JRadioButton("Trivial");
 
         group = new ButtonGroup();
         group.add(blocker);
@@ -199,6 +205,38 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
         trivial.setActionCommand(RegexExtractor.USE_TRIVIAL);
 
         return panel;
+    }
+
+    private JPanel makePathToResultsPanel() {
+        JPanel pathPanel = new JPanel(new GridBagLayout());
+
+        GridBagConstraints labelConstraints = new GridBagConstraints();
+        labelConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
+
+        GridBagConstraints editConstraints = new GridBagConstraints();
+        editConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
+        editConstraints.weightx = 1.0;
+        editConstraints.fill = GridBagConstraints.HORIZONTAL;
+
+        addToPanel(pathPanel, labelConstraints, 0, 1, new JLabel("Path to results: ", JLabel.RIGHT));
+        addToPanel(pathPanel, editConstraints, 1, 1, pathToResults = new JTextField(20));
+        JButton browseButton = new JButton("Browse...");
+        addToPanel(pathPanel, labelConstraints, 2, 1, browseButton);
+        GuiBuilderHelper.strechItemToComponent(pathToResults, browseButton);
+        browseButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser j = new JFileChooser();
+                j.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                Integer opt = j.showSaveDialog(pathPanel);
+                if (opt == JFileChooser.APPROVE_OPTION) {
+                    File selectedFolder = j.getSelectedFile();
+                    pathToResults.setText(selectedFolder.getAbsolutePath());
+                }
+            }
+        });
+
+        return pathPanel;
     }
 
     private JPanel makeMainParameterPanel() {
@@ -299,14 +337,14 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
 
 //-----------------------------------------------------Доделать
     private void init() { 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(0, 5));
         setBorder(makeBorder());
 
         Box box = Box.createVerticalBox();
-        box.add(makeTitlePanel());
-        box.add(makeSeverityPanel());
-        box.add(); // Здесь будет панель для выбора папки и перезаписи
-        box.add(makeMainParameterPanel());
+        box.add(makeTitlePanel(), BorderLayout.NORTH);
+        box.add(makeSeverityPanel(), BorderLayout.NORTH);
+        box.add(makePathToResultsPanel(), BorderLayout.NORTH); 
+        box.add(makeMainParameterPanel(), BorderLayout.CENTER);
         box.add(); // Здесь будет панель с таблицами либо по панели на таблицу (изучить этот вопрос)
     }
 }

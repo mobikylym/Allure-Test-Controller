@@ -102,47 +102,6 @@ public class RegexExtractorGui extends AbstractPostProcessorGui {
         add(makeParameterPanel(), BorderLayout.CENTER);
     }
 
-    private JPanel makeParameterPanel() {
-        regexField = new JLabeledTextField(JMeterUtils.getResString("regex_field")); //$NON-NLS-1$
-        templateField = new JLabeledTextField(JMeterUtils.getResString("template_field")); //$NON-NLS-1$
-        refNameField = new JLabeledTextField(JMeterUtils.getResString("ref_name_field")); //$NON-NLS-1$
-        matchNumberField = new JLabeledTextField(JMeterUtils.getResString("match_num_field")); //$NON-NLS-1$
-
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        initConstraints(gbc);
-        addField(panel, refNameField, gbc);
-        resetContraints(gbc);
-        addField(panel, regexField, gbc);
-        resetContraints(gbc);
-        addField(panel, templateField, gbc);
-        resetContraints(gbc);
-        addField(panel, matchNumberField, gbc);
-        resetContraints(gbc);
-        gbc.weighty = 1;
-
-        defaultField = new JLabeledTextField(JMeterUtils.getResString("default_value_field")); //$NON-NLS-1$
-        List<JComponent> item = defaultField.getComponentList();
-        panel.add(item.get(0), gbc.clone());
-        JPanel p = new JPanel(new BorderLayout());
-        p.add(item.get(1), BorderLayout.WEST);
-        emptyDefaultValue = new JCheckBox(JMeterUtils.getResString("assertion_regex_empty_default_value")); //$NON-NLS-1$
-        emptyDefaultValue.addItemListener(evt -> {
-            if(emptyDefaultValue.isSelected()) {
-                defaultField.setText(""); //$NON-NLS-1$
-            }
-            defaultField.setEnabled(!emptyDefaultValue.isSelected());
-        });
-
-        p.add(emptyDefaultValue, BorderLayout.CENTER);
-        gbc.gridx++;
-        gbc.weightx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        panel.add(p, gbc.clone());
-
-        return panel;
-    }
-
     private static void addField(JPanel panel, JLabeledTextField field, GridBagConstraints gbc) {
         List<JComponent> item = field.getComponentList();
         panel.add(item.get(0), gbc.clone());
