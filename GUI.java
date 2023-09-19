@@ -49,12 +49,18 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     private JTextField story; //Story
     private JTextField feature; //Feature
     private JTextField tags; //Tags
-    private final JLabel linksLabel;
+    private JTextField parameters; //Parameters
+    private JTextField contentType; //Content type
+    private JTextField owner; //Owner
+    private final JLabel linksLabel; //Links
     private transient JTable linksTable;
     protected transient ObjectTableModel linksTableModel;
-    private final JLabel issuesLabel;
+    private final JLabel issuesLabel; //Issues
     private transient JTable issuesTable;
     protected transient ObjectTableModel issuesTableModel;
+    private final JLabel extraOptionsLabel; //Extra options
+    private transient JTable extraOptionsTable;
+    protected transient ObjectTableModel extraOptionsTableModel;
     private JComponent MainPanel;
     private JButton add;
     private JButton delete;
@@ -99,14 +105,6 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     public static final String COLUMN_RESOURCE_NAMES_1 = "value"; // $NON-NLS-1$
     public static final String COLUMN_RESOURCE_NAMES_2 = "description"; // $NON-NLS-1$
 
-    private JTextField parameters; //Parameters
-    private JTextField contentType; //Content type
-    private JTextField owner; //Owner
-    private final JLabel extraOptionsLabel;
-    private transient JTable extraOptionsTable;
-    protected transient ObjectTableModel extraOptionsTableModel;
-
-
 
     /**
      * Create a new AllureTestControllerGui instance.
@@ -130,7 +128,6 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     @Override
     public TestElement createTestElement() {
         AllureTestController lc = new AllureTestController();
-        lc.setIncludeTimers(false); // change default for new test elements
         configureTestElement(lc);
         return lc;
     }
@@ -139,6 +136,29 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     public void clearGui() {
         super.clearGui();
         initFields();
+    }
+
+    private void initFields() { 
+        pathToResults.setText("Choose result folder");
+        folderOverwrite.setSelected(false);
+        isSingleStep.setSelected(false);
+        isCritical.setSelected(false);
+        normal.setSelected(true);
+        testName.setText("");
+        description.setText("");
+        epic.setText("");
+        story.setText("");
+        feature.setText("");
+        tags.setText("");
+        parameters.setText("");
+        contentType.setText("");
+        owner.setText("");
+        GuiUtils.stopTableEditing(linksTable);
+        linksTableModel.clearData();
+        GuiUtils.stopTableEditing(issuesTable);
+        issuesTableModel.clearData();
+        GuiUtils.stopTableEditing(extraOptionsTable);
+        extraOptionsTableModel.clearData();
     }
 
     private JPanel makeSeverityPanel() {
@@ -179,8 +199,28 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     @Override //-----------------------------------------------------Доделать
     public void configure(TestElement el) {
         super.configure(el);
-        generateParentSample.setSelected(((AllureTestController) el).isGenerateParentSample());
-        includeTimers.setSelected(((AllureTestController) el).isIncludeTimers());
+        if (el instanceof AllureTestController) {
+            AllureTestController atc = (AllureTestController) el;
+            pathToResults.setText(atc.getPathToResults());
+            folderOverwrite.setSelected(atc.isFolderOverwrite());
+            isSingleStep.setSelected(atc.isSingleStepTest());
+            isCritical.setSelected(atc.isCriticalTest());
+            blocker.setSelected(atc.isBlocker());
+            critical.setSelected(atc.isCritical());
+            normal.setSelected(atc.isNormal());
+            minor.setSelected(atc.isMinor());
+            trivial.setSelected(atc.isTrivial());
+            testName.setText(atc.getTestNameField());
+            description.setText(atc.getDescriptionField());
+            epic.setText(atc.getEpicField());
+            story.setText(atc.getStoryField());
+            feature.setText(atc.getFeatureField());
+            tags.setText(atc.getTagsField());
+            parameters.setText(atc.getParametersField());
+            contentType.setText(atc.getContentTypeField());
+            owner.setText(atc.getOwnerField());
+            // Дописать про таблицы
+        }
     }
 
     @Override //-----------------------------------------------------Доделать
@@ -193,18 +233,24 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
             atc.setFolderOverwrite(folderOverwrite.isSelected());
             atc.setIsSingleStep(isSingleStep.isSelected());
             atc.setIsCritical(isCritical.isSelected());
-            atc.setUseField(group.getSelection().getActionCommand()); //Создать панель (group)
-            atc.setFileHeader(header.getText());
-            atc.setFileFooter(footer.getText());
+            atc.setSeverityGroup(group.getSelection().getActionCommand()); //Создать панель (group)
+            atc.setTestNameField(testName.getText());
+            atc.setDescriptionField(description.getText());
+            atc.setEpicField(epic.getText());
+            atc.setStoryField(story.getText());
+            atc.setFeatureField(feature.getText());
+            atc.setTagsField(tags.getText());
+            atc.setParametersField(parameters.getText());
+            atc.setContentTypeField(contentType.getText());
+            atc.setOwnerField(owner.getText());
+            // Дописать про таблицы
         }
     }
 
     
 
-    /**
-     * Initialize the GUI components and layout for this component.
-     */
-    private void init() { // WARNING: called from ctor so must not be overridden (i.e. must be private or final)
+//-----------------------------------------------------Доделать
+    private void init() { 
         setLayout(new BorderLayout(0, 5));
         setBorder(makeBorder());
         add(makeTitlePanel());

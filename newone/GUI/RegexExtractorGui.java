@@ -45,34 +45,7 @@ import org.apache.jorphan.gui.JLabeledTextField;
 @GUIMenuSortOrder(4)
 @TestElementMetadata(labelResource = "regex_extractor_title")
 public class RegexExtractorGui extends AbstractPostProcessorGui {
-    private static final long serialVersionUID = 240L;
-
-    private JLabeledTextField regexField;
-    private JLabeledTextField templateField;
-    private JLabeledTextField defaultField;
-    private JLabeledTextField matchNumberField;
-    private JLabeledTextField refNameField;
-    private JRadioButton useBody;
-    private JRadioButton useUnescapedBody;
-    private JRadioButton useBodyAsDocument;
-    private JRadioButton useHeaders;
-    private JRadioButton useRequestHeaders;
-    private JRadioButton useURL;
-    private JRadioButton useCode;
-    private JRadioButton useMessage;
-    private ButtonGroup group;
-    private JCheckBox emptyDefaultValue;
-
-    public RegexExtractorGui() {
-        super();
-        init();
-    }
-
-    @Override
-    public String getLabelResource() {
-        return "regex_extractor_title"; //$NON-NLS-1$
-    }
-
+   
     @Override
     public void configure(TestElement el) {
         super.configure(el);
@@ -97,16 +70,6 @@ public class RegexExtractorGui extends AbstractPostProcessorGui {
     }
 
     /**
-     * @see org.apache.jmeter.gui.JMeterGUIComponent#createTestElement()
-     */
-    @Override
-    public TestElement createTestElement() {
-        AbstractScopedTestElement extractor = new RegexExtractor();
-        modifyTestElement(extractor);
-        return extractor;
-    }
-
-    /**
      * Modifies a given TestElement to mirror the data in the gui components.
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
@@ -127,23 +90,6 @@ public class RegexExtractorGui extends AbstractPostProcessorGui {
         }
     }
 
-    /**
-     * Implements JMeterGUIComponent.clearGui
-     */
-    @Override
-    public void clearGui() {
-        super.clearGui();
-
-        useBody.setSelected(true);
-
-        regexField.setText(""); //$NON-NLS-1$
-        templateField.setText(""); //$NON-NLS-1$
-        defaultField.setText(""); //$NON-NLS-1$
-        emptyDefaultValue.setSelected(false);
-        refNameField.setText(""); //$NON-NLS-1$
-        matchNumberField.setText(""); //$NON-NLS-1$
-    }
-
     private void init() { // WARNING: called from ctor so must not be overridden (i.e. must be private or final)
         setLayout(new BorderLayout());
         setBorder(makeBorder());
@@ -154,53 +100,6 @@ public class RegexExtractorGui extends AbstractPostProcessorGui {
         box.add(makeSourcePanel());
         add(box, BorderLayout.NORTH);
         add(makeParameterPanel(), BorderLayout.CENTER);
-    }
-
-    private JPanel makeSourcePanel() {
-        JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createTitledBorder(JMeterUtils.getResString("regex_source"))); //$NON-NLS-1$
-
-        useBody = new JRadioButton(JMeterUtils.getResString("regex_src_body")); //$NON-NLS-1$
-        useUnescapedBody = new JRadioButton(JMeterUtils.getResString("regex_src_body_unescaped")); //$NON-NLS-1$
-        useBodyAsDocument = new JRadioButton(JMeterUtils.getResString("regex_src_body_as_document")); //$NON-NLS-1$
-        useHeaders = new JRadioButton(JMeterUtils.getResString("regex_src_hdrs")); //$NON-NLS-1$
-        useRequestHeaders = new JRadioButton(JMeterUtils.getResString("regex_src_hdrs_req")); //$NON-NLS-1$
-        useURL = new JRadioButton(JMeterUtils.getResString("regex_src_url")); //$NON-NLS-1$
-        useCode = new JRadioButton(JMeterUtils.getResString("assertion_code_resp")); //$NON-NLS-1$
-        useMessage = new JRadioButton(JMeterUtils.getResString("assertion_message_resp")); //$NON-NLS-1$
-
-        group = new ButtonGroup();
-        group.add(useBody);
-        group.add(useUnescapedBody);
-        group.add(useBodyAsDocument);
-        group.add(useHeaders);
-        group.add(useRequestHeaders);
-        group.add(useURL);
-        group.add(useCode);
-        group.add(useMessage);
-
-        panel.add(useBody);
-        panel.add(useUnescapedBody);
-        panel.add(useBodyAsDocument);
-        panel.add(useHeaders);
-        panel.add(useRequestHeaders);
-        panel.add(useURL);
-        panel.add(useCode);
-        panel.add(useMessage);
-
-        useBody.setSelected(true);
-
-        // So we know which button is selected
-        useBody.setActionCommand(RegexExtractor.USE_BODY);
-        useUnescapedBody.setActionCommand(RegexExtractor.USE_BODY_UNESCAPED);
-        useBodyAsDocument.setActionCommand(RegexExtractor.USE_BODY_AS_DOCUMENT);
-        useHeaders.setActionCommand(RegexExtractor.USE_HDRS);
-        useRequestHeaders.setActionCommand(RegexExtractor.USE_REQUEST_HDRS);
-        useURL.setActionCommand(RegexExtractor.USE_URL);
-        useCode.setActionCommand(RegexExtractor.USE_CODE);
-        useMessage.setActionCommand(RegexExtractor.USE_MESSAGE);
-
-        return panel;
     }
 
     private JPanel makeParameterPanel() {
