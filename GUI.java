@@ -1,5 +1,6 @@
 package org.apache.jmeter.control.gui;
 
+import java.util.List;
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -10,6 +11,7 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -19,11 +21,14 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
 
 import org.apache.jmeter.control.AllureTestController;
 import org.apache.jmeter.gui.util.CheckBoxPanel;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.JLabeledTextField;
 import org.apache.jorphan.gui.layout.VerticalLayout;
 import org.apache.jorphan.gui.ObjectTableModel;
 
@@ -33,16 +38,16 @@ import org.apache.jorphan.gui.ObjectTableModel;
  */
 public class AllureTestControllerGui extends AbstractControllerGui implements ClipboardOwner {
 
-    private JTextField pathToResults; //Path to results
-    private JCheckBox folderOverwrite; //Overwrite folder
-    private JCheckBox isSingleStep; //Single step tests?
-    private JCheckBox isCritical; //Critical?
     private JRadioButton blocker; //Severity
     private JRadioButton critical; //Severity
     private JRadioButton normal; //Severity
     private JRadioButton minor; //Severity
     private JRadioButton trivial; //Severity
     private ButtonGroup group;
+    private JTextField pathToResults; //Path to results
+    private JCheckBox folderOverwrite; //Overwrite folder
+    private JCheckBox isSingleStep; //Single step tests?
+    private JCheckBox isCritical; //Critical?
     private JTextField testName; //Test
     private JTextField description; //Description
     private JTextField epic; //Epic
@@ -139,11 +144,11 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     }
 
     private void initFields() { 
+        normal.setSelected(true);
         pathToResults.setText("Choose result folder");
         folderOverwrite.setSelected(false);
         isSingleStep.setSelected(false);
         isCritical.setSelected(false);
-        normal.setSelected(true);
         testName.setText("");
         description.setText("");
         epic.setText("");
@@ -196,20 +201,62 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
         return panel;
     }
 
+    private JPanel makeMainParameterPanel() {
+        isSingleStep = new JCheckBox("Single step tests");
+        isCritical = new JCheckBox("Stop test on error");
+        testName = new JLabeledTextField("Test");
+        description = new JLabeledTextField("Description");
+        epic = new JLabeledTextField("Epic");
+        story = new JLabeledTextField("Story"); 
+        feature = new JLabeledTextField("Feature");
+        tags = new JLabeledTextField("Tags");
+        parameters = new JLabeledTextField("Parameters");
+        contentType = new JLabeledTextField("Content type");
+        owner = new JLabeledTextField("Owner");
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        panel.add(isSingleStep);
+        panel.add(isCritical);
+        panel.add(testName);
+        panel.add(description);
+        panel.add(epic);
+        panel.add(story);
+        panel.add(feature);
+        panel.add(tags);
+        panel.add(parameters);
+        panel.add(contentType);
+        panel.add(owner);
+        
+        isSingleStep.addItemListener(evt -> {
+            if (evt.getStateChange() == ItemEvent.SELECTED) {
+                // Checkbox has been selected
+                testName.setEnabled(false);
+                testName.setText("");
+                description.setEnabled(false);
+                description.setText("");
+            } else {
+                // Checkbox has been deselected
+                testName.setEnabled(true);
+                description.setEnabled(true);
+            }
+        });
+    }
+
     @Override //-----------------------------------------------------Доделать
     public void configure(TestElement el) {
         super.configure(el);
         if (el instanceof AllureTestController) {
             AllureTestController atc = (AllureTestController) el;
-            pathToResults.setText(atc.getPathToResults());
-            folderOverwrite.setSelected(atc.isFolderOverwrite());
-            isSingleStep.setSelected(atc.isSingleStepTest());
-            isCritical.setSelected(atc.isCriticalTest());
             blocker.setSelected(atc.isBlocker());
             critical.setSelected(atc.isCritical());
             normal.setSelected(atc.isNormal());
             minor.setSelected(atc.isMinor());
             trivial.setSelected(atc.isTrivial());
+            pathToResults.setText(atc.getPathToResults());
+            folderOverwrite.setSelected(atc.isFolderOverwrite());
+            isSingleStep.setSelected(atc.isSingleStepTest());
+            isCritical.setSelected(atc.isCriticalTest());
             testName.setText(atc.getTestNameField());
             description.setText(atc.getDescriptionField());
             epic.setText(atc.getEpicField());
@@ -228,12 +275,11 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
         super.configureTestElement(te);
         if (te instanceof AllureTestController) {
             AllureTestController atc = (AllureTestController) te;
-            saveScopeSettings(atc);
+            atc.setSeverityGroup(group.getSelection().getActionCommand()); //Создать панель (group)
             atc.setPathToResults(pathToResults.getText());
             atc.setFolderOverwrite(folderOverwrite.isSelected());
             atc.setIsSingleStep(isSingleStep.isSelected());
             atc.setIsCritical(isCritical.isSelected());
-            atc.setSeverityGroup(group.getSelection().getActionCommand()); //Создать панель (group)
             atc.setTestNameField(testName.getText());
             atc.setDescriptionField(description.getText());
             atc.setEpicField(epic.getText());
@@ -251,12 +297,14 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
 
 //-----------------------------------------------------Доделать
     private void init() { 
-        setLayout(new BorderLayout(0, 5));
+        setLayout(new BorderLayout());
         setBorder(makeBorder());
-        add(makeTitlePanel());
-        generateParentSample = new JCheckBox(JMeterUtils.getResString("transaction_controller_parent")); // $NON-NLS-1$
-        add(CheckBoxPanel.wrap(generateParentSample));
-        includeTimers = new JCheckBox(JMeterUtils.getResString("transaction_controller_include_timers"), true); // $NON-NLS-1$
-        add(CheckBoxPanel.wrap(includeTimers));
+
+        Box box = Box.createVerticalBox();
+        box.add(makeTitlePanel());
+        box.add(makeSeverityPanel());
+        box.add(); // Здесь будет панель для выбора папки и перезаписи
+        box.add(makeMainParameterPanel());
+        box.add(); // Здесь будет панель с таблицами либо по панели на таблицу (изучить этот вопрос)
     }
 }
