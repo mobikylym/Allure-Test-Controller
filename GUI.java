@@ -15,6 +15,8 @@ import java.awt.event.*;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JRadioButton;
+import javax.swing.ButtonGroup;
 import javax.swing.JFileChooser;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
@@ -25,8 +27,9 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
 
-import org.apache.jmeter.control.AllureTestController;
+//import org.apache.jmeter.control.AllureTestController;
 import org.apache.jmeter.config.Argument;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.gui.ArgumentsPanel;
@@ -45,7 +48,7 @@ import kg.apc.jmeter.gui.GuiBuilderHelper;
 /**
  * A Allure test controller component.
  */
-public class AllureTestControllerGui extends AbstractControllerGui implements ActionListener {
+public class AllureTestControllerGui extends AbstractControllerGui {
 
     private JRadioButton blocker; //Severity
     private JRadioButton critical; //Severity
@@ -57,15 +60,15 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Ac
     private JCheckBox folderOverwrite; //Overwrite folder
     private JCheckBox isCritical; //Stop test on error
     private JCheckBox isSingleStep; //Single step tests
-    private JTextField testName; //Test
-    private JTextField description; //Description
-    private JTextField epic; //Epic
-    private JTextField story; //Story
-    private JTextField feature; //Feature
-    private JTextField tags; //Tags
-    private JTextField parameters; //Parameters
-    private JTextField contentType; //Content type
-    private JTextField owner; //Owner
+    private JLabeledTextField testName; //Test
+    private JLabeledTextField description; //Description
+    private JLabeledTextField epic; //Epic
+    private JLabeledTextField story; //Story
+    private JLabeledTextField feature; //Feature
+    private JLabeledTextField tags; //Tags
+    private JLabeledTextField parameters; //Parameters
+    private JLabeledTextField contentType; //Content type
+    private JLabeledTextField owner; //Owner
     private ArgumentsPanel linksPanel; //Links
     private ArgumentsPanel issuesPanel; //Issues (Allure Test Management System only)
     private ArgumentsPanel extraOptionsPanel; //Extra labels (Allure Test Management System only)
@@ -97,7 +100,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Ac
     public void clearGui() {
         super.clearGui();
         linksPanel.clearGui();
-        IssuesPanel.clearGui();
+        issuesPanel.clearGui();
         extraOptionsPanel.clearGui();
         initFields();
     }
@@ -145,30 +148,37 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Ac
         normal.setSelected(true);
 
         // So we know which button is selected
+		/*
         blocker.setActionCommand(RegexExtractor.USE_BLOCKER);
         critical.setActionCommand(RegexExtractor.USE_CRITICAL);
         normal.setActionCommand(RegexExtractor.USE_NORMAL);
         minor.setActionCommand(RegexExtractor.USE_MINOR);
         trivial.setActionCommand(RegexExtractor.USE_TRIVIAL);
-
+		*/
         return panel;
     }
 
     private JPanel makePathToResultsPanel() {
         JPanel pathPanel = new JPanel(new GridBagLayout());
 
-        GridBagConstraints labelConstraints = new GridBagConstraints();
-        labelConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
+        GridBagConstraints constraints = new GridBagConstraints();
+		constraints.anchor = GridBagConstraints.FIRST_LINE_START;
+		constraints.weightx = 1.0;
+		constraints.fill = GridBagConstraints.HORIZONTAL;
 
-        GridBagConstraints editConstraints = new GridBagConstraints();
-        editConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
-        editConstraints.weightx = 1.0;
-        editConstraints.fill = GridBagConstraints.HORIZONTAL;
+		JLabel label = new JLabel("Path to results: ", JLabel.RIGHT);
+		constraints.gridx = 0;
+		constraints.gridy = 1;
+		pathPanel.add(label, constraints);
 
-        addToPanel(pathPanel, labelConstraints, 0, 1, new JLabel("Path to results: ", JLabel.RIGHT));
-        addToPanel(pathPanel, editConstraints, 1, 1, pathToResults = new JTextField(20));
-        JButton browseButton = new JButton("Browse...");
-        addToPanel(pathPanel, labelConstraints, 2, 1, browseButton);
+		JTextField pathToResults = new JTextField(20);
+		constraints.gridx = 1;
+		pathPanel.add(pathToResults, constraints);
+
+		JButton browseButton = new JButton("Browse...");
+		constraints.gridx = 2;
+		pathPanel.add(browseButton, constraints);
+        
         GuiBuilderHelper.strechItemToComponent(pathToResults, browseButton);
         browseButton.addActionListener(new ActionListener() {
             @Override
