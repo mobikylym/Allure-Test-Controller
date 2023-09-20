@@ -37,6 +37,7 @@ import org.apache.jmeter.gui.util.CheckBoxPanel;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.visualizers.gui.AbstractListenerGui;
+import org.apache.jmeter.control.gui.AbstractControllerGui;
 import org.apache.jorphan.gui.JLabeledTextField;
 import org.apache.jorphan.gui.layout.VerticalLayout;
 import org.apache.jorphan.gui.ObjectTableModel;
@@ -178,7 +179,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
 		JButton browseButton = new JButton("Browse...");
 		constraints.gridx = 2;
 		pathPanel.add(browseButton, constraints);
-        
+
         GuiBuilderHelper.strechItemToComponent(pathToResults, browseButton);
         browseButton.addActionListener(new ActionListener() {
             @Override
