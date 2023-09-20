@@ -67,8 +67,8 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     private JTextField contentType; //Content type
     private JTextField owner; //Owner
     private ArgumentsPanel linksPanel; //Links
-    private ArgumentsPanel issuesPanel; //Issues
-    private ArgumentsPanel extraOptionsPanel; //Extra options
+    private ArgumentsPanel issuesPanel; //Issues (Allure Test Management System only)
+    private ArgumentsPanel extraOptionsPanel; //Extra labels (Allure Test Management System only)
 
     public AllureTestControllerGui() {
         super();
@@ -227,7 +227,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
 
                 testName.setEnabled(true);
                 description.setEnabled(true);
-                
+
             }
         });
 
