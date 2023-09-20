@@ -240,6 +240,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
     }
 
     private JPanel makeMainParameterPanel() {
+        folderOverwrite = new JCheckBox("Overwrite folder");
         isSingleStep = new JCheckBox("Single step tests");
         isCritical = new JCheckBox("Stop test on error");
         testName = new JLabeledTextField("Test");
@@ -254,6 +255,7 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        panel.add(folderOverwrite);
         panel.add(isSingleStep);
         panel.add(isCritical);
         panel.add(testName);
@@ -332,8 +334,6 @@ public class AllureTestControllerGui extends AbstractControllerGui implements Cl
             // Дописать про таблицы
         }
     }
-
-    
 
 //-----------------------------------------------------Доделать
     private void init() { 
