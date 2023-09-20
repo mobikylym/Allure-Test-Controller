@@ -45,7 +45,7 @@ import kg.apc.jmeter.gui.GuiBuilderHelper;
 /**
  * A Allure test controller component.
  */
-public class AllureTestControllerGui extends AbstractControllerGui implements ClipboardOwner {
+public class AllureTestControllerGui extends AbstractControllerGui implements ActionListener {
 
     private JRadioButton blocker; //Severity
     private JRadioButton critical; //Severity
