@@ -1,71 +1,40 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to you under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package org.apache.jmeter.control; 
 
-package org.apache.jmeter.control; //+
+import java.io.Serializable;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import java.io.Serializable; //+
-
-import org.apache.jmeter.samplers.SampleEvent; //+
-import org.apache.jmeter.samplers.SampleListener; //+
-import org.apache.jmeter.samplers.SampleResult; //+
+import org.apache.jmeter.samplers.SampleEvent; 
+import org.apache.jmeter.samplers.SampleListener;
+import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testelement.schema.PropertiesAccessor;
-import org.apache.jmeter.threads.JMeterContext; //+
-import org.apache.jmeter.threads.JMeterContextService; //+
-import org.apache.jmeter.threads.JMeterThread; //+
-import org.apache.jmeter.threads.JMeterVariables; //+
-import org.apache.jmeter.threads.ListenerNotifier; //+
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterThread;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.threads.ListenerNotifier;
 import org.apache.jmeter.threads.SamplePackage;
-import org.slf4j.Logger; //+
-import org.slf4j.LoggerFactory; //+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Transaction Controller to measure transaction times
- *
- * There are two different modes for the controller:
- * - generate additional total sample after nested samples (as in JMeter 2.2)
- * - generate parent sampler containing the nested samples
- *
+ * ------------------------------------Здесь добавить описание класса
  */
-public class TransactionController extends GenericController implements SampleListener, Controller, Serializable {
+public class AllureTestController extends GenericController implements SampleListener, Controller, Serializable {
     /**
      * Used to identify Transaction Controller Parent Sampler
      */
     static final String NUMBER_OF_SAMPLES_IN_TRANSACTION_PREFIX = "Number of samples in transaction : ";
 
-    private static final long serialVersionUID = 234L;
-
     private static final String TRUE = Boolean.toString(true); // i.e. "true"
 
-    private static final Logger log = LoggerFactory.getLogger(TransactionController.class);
+    private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
 
-    /**
-     * Only used in parent Mode
-     */
-    private transient TransactionSampler transactionSampler;
-
-    /**
-     * Only used in NON parent Mode
-     */
     private transient ListenerNotifier lnf;
-
-    /**
-     * Only used in NON parent Mode
-     */
     private transient SampleResult res;
 
     /**
@@ -91,19 +60,14 @@ public class TransactionController extends GenericController implements SampleLi
     private transient long prevEndTime;
 
     /**
-     * Creates a Transaction Controller
+     * Creates a Allure Test Controller
      */
-    public TransactionController() {
+    public AllureTestController() {
         lnf = new ListenerNotifier();
     }
 
     @Override
-    public TransactionControllerSchema getSchema() {
-        return TransactionControllerSchema.INSTANCE;
-    }
-
-    @Override
-    public PropertiesAccessor<? extends TransactionController, ? extends TransactionControllerSchema> getProps() {
+    public PropertiesAccessor<? extends AllureTestController> getProps() {
         return new PropertiesAccessor<>(this, getSchema());
     }
 
@@ -114,64 +78,117 @@ public class TransactionController extends GenericController implements SampleLi
         return this;
     }
 
-    /**
-     * @param generateParent flag whether a parent sample should be generated.
-     */
-    public void setGenerateParentSample(boolean generateParent) {
-        set(getSchema().getGenearteParentSample(), generateParent);
+    //
+    // Path to results
+    //
+    public void setPathToResults(String res) {
+        set(getSchema().getPathToRes(), res);
     }
 
-    /**
-     * @return {@code true} if a parent sample will be generated
-     */
-    public boolean isGenerateParentSample() {
-        return get(getSchema().getGenearteParentSample());
+    public String getPathToResults() {
+        return get(getSchema().getPathToRes());
     }
+
+    @Override   // Проверка валидности пути к папке + создание папки, если это возможно
+    public void testStarted() {
+        String pathToResults = getPathToResults();
+        File folder = new File(pathToResults);
+        if (!folder.getParentFile().exists()) {
+            log.error("Folder path {} does not exist.", folder.getParent());
+            return;
+        }
+        if (!folder.exists()) {
+            try {
+                if (folder.mkdir()) {
+                    log.info("Directory {} created.", pathToResults);
+                } else {
+                    log.error("Failed to create directory {}.", pathToResults);
+                    return;
+                }
+                } catch (SecurityException ex) {
+                    log.error("Permission denied: Cannot create directory {}", pathToResults, ex);
+                    return;
+                }
+        } else {
+            if (!folder.isDirectory()) {
+                log.error("{} is not directory.", pathToResults);
+                return;
+            } else {
+                if (isFolderOverwrite()) { // Потом нужно будет перенести очистку папки на момент начала выполнения контроллера
+                    try {
+                        Files.walk(Paths.get(pathToResults))
+                            .map(Path::toFile)
+                            .forEach(File::delete);
+                            log.info("Directory {} cleared.", pathToResults);
+                    } catch (IOException ex) {
+                    log.warn("Failed to clear directory {}.", pathToResults, ex);
+                    return;
+                    }
+                }
+            }
+        } 
+    }
+
+    //
+    // Overwrite folder
+    //
+    public void setFolderOverwrite(boolean ov) {
+        set(getSchema().getFolderOverwrite(), ov);
+    }
+    
+    public boolean isFolderOverwrite() {
+        return get(getSchema().getFolderOverwrite());
+    }
+
+    //
+    // Stop test on error
+    //
+    public void setIsCritical(boolean ic) {
+        set(getSchema().getIsCritical(), ic);
+    }
+    
+    public boolean isCriticalTest() {
+        return get(getSchema().getIsCritical());
+    }
+
+    //
+    // Single step tests
+    //
+    public void setIsSingleStep(boolean ss) {
+        set(getSchema().getIsSingleStep(), ss);
+    }
+    
+    public boolean isSingleStepTest() {
+        return get(getSchema().getIsSingleStep());
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * @see org.apache.jmeter.control.Controller#next()
      */
     @Override
     public Sampler next(){
-        if (isGenerateParentSample()){
-            return nextWithTransactionSampler();
-        }
         return nextWithoutTransactionSampler();
     }
 
 ///////////////// Transaction Controller - parent ////////////////
 
-    private Sampler nextWithTransactionSampler() {
-        // Check if transaction is done
-        if(transactionSampler != null && transactionSampler.isTransactionDone()) {
-            if (log.isDebugEnabled()) {
-                log.debug("End of transaction {}", getName());
-            }
-            // This transaction is done
-            transactionSampler = null;
-            return null;
-        }
-
-        // Check if it is the start of a new transaction
-        if (isFirst()) // must be the start of the subtree
-        {
-            if (log.isDebugEnabled()) {
-                log.debug("Start of transaction {}", getName());
-            }
-            transactionSampler = new TransactionSampler(this, getName());
-        }
-
-        // Sample the children of the transaction
-        Sampler subSampler = super.next();
-        transactionSampler.setSubSampler(subSampler);
-        // If we do not get any sub samplers, the transaction is done
-        if (subSampler == null) {
-            transactionSampler.setTransactionDone();
-        }
-        return transactionSampler;
-    }
-
-    @Override
+    @Override // ------------------------------------------------------------------------------ Надобность под вопросом
     protected Sampler nextIsAController(Controller controller) throws NextIsNullException {
         if (!isGenerateParentSample()) {
             return super.nextIsAController(controller);

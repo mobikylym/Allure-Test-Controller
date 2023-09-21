@@ -29,7 +29,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 
-//import org.apache.jmeter.control.AllureTestController;
+import org.apache.jmeter.control.AllureTestController;
 import org.apache.jmeter.config.Argument;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.gui.ArgumentsPanel;
@@ -47,7 +47,7 @@ import kg.apc.jmeter.gui.BrowseAction;
 import kg.apc.jmeter.gui.GuiBuilderHelper;
 
 /**
- * A Allure test controller component.
+ * Allure Test Controller GUI component.
  */
 public class AllureTestControllerGui extends AbstractControllerGui {
 
