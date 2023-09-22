@@ -1,4 +1,4 @@
-package org.apache.jmeter.control; 
+package kg.apc.jmeter.control; 
 
 import java.io.Serializable;
 import java.io.File;
@@ -6,12 +6,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.jmeter.samplers.SampleEvent; 
 import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
+import org.apache.jmeter.control.TransactionController;
+import org.apache.jmeter.extractor.RegexExtractor;
+import org.apache.jmeter.control.GenericController;
 import org.apache.jmeter.testelement.schema.PropertiesAccessor;
+import org.apache.jmeter.testelement.property.BooleanProperty;
+import org.apache.jmeter.testelement.property.StringProperty;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterThread;
@@ -24,15 +31,29 @@ import org.slf4j.LoggerFactory;
 /**
  * ------------------------------------Здесь добавить описание класса
  */
-public class AllureTestController extends GenericController implements SampleListener, Controller, Serializable {
-    /**
-     * Used to identify Transaction Controller Parent Sampler
-     */
-    static final String NUMBER_OF_SAMPLES_IN_TRANSACTION_PREFIX = "Number of samples in transaction : ";
+public class AllureTestController extends TransactionController implements Serializable {
+    
+    public static final String PATH_TO_RESULTS = "AllureTestController.pathToResults";
+    public static final String FOLDER_OVERWRITE = "AllureTestController.folderOverwrite";
+    public static final String IS_CRITICAL = "AllureTestController.isCritical";
+    public static final String IS_SINGLE_STEP = "AllureTestController.isSingleStep";
+    public static final String TEST_NAME = "AllureTestController.testName";
+    public static final String DESCRIPTION = "AllureTestController.description";
+    public static final String SEVERITY = "AllureTestController.severity";
+    public static final String EPIC = "AllureTestController.epic";
+    public static final String STORY = "AllureTestController.story";
+    public static final String FEATURE = "AllureTestController.feature";
+    public static final String TAGS = "AllureTestController.tags";
+    public static final String PARAMETERS = "AllureTestController.parameters";
+    public static final String CONTENT_TYPE = "AllureTestController.contentType";
+    public static final String OWNER = "AllureTestController.owner";
+    // Подумать, как добавить сюда таблицы
 
     private static final String TRUE = Boolean.toString(true); // i.e. "true"
 
     private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
+
+    private List<AllureTestController> subControllersAndSamplers = new ArrayList<>();
 
     private transient ListenerNotifier lnf;
     private transient SampleResult res;
@@ -63,13 +84,13 @@ public class AllureTestController extends GenericController implements SampleLis
      * Creates a Allure Test Controller
      */
     public AllureTestController() {
-        lnf = new ListenerNotifier();
+        super();
     }
-
+/* 
     @Override
     public PropertiesAccessor<? extends AllureTestController> getProps() {
         return new PropertiesAccessor<>(this, getSchema());
-    }
+    }*/
 
     @Override
     protected Object readResolve(){
@@ -81,16 +102,31 @@ public class AllureTestController extends GenericController implements SampleLis
     //
     // Path to results
     //
-    public void setPathToResults(String res) {
-        set(getSchema().getPathToRes(), res);
+    public void setPathToResults(String pathToResults) {
+        setProperty(PATH_TO_RESULTS, pathToResults);
     }
 
     public String getPathToResults() {
-        return get(getSchema().getPathToRes());
+        return getPropertyAsString(PATH_TO_RESULTS);
     }
 
-    @Override   // Проверка валидности пути к папке + создание папки, если это возможно
-    public void testStarted() {
+    private List<AllureTestController> getSameSubControllers() {
+        return subControllersAndSamplers;
+    }
+
+    protected void checkSameSubControllers() {
+        for (AllureTestController te : subControllersAndSamplers) {
+            if(te instanceof AllureTestController) {
+                log.error("AllureTestController can not be in same Controller.");
+                    return;
+            }
+        }
+    }
+
+    // Проверка валидности пути к папке + создание папки, если это возможно
+    private void testStarted() {
+        checkSameSubControllers();
+
         String pathToResults = getPathToResults();
         File folder = new File(pathToResults);
         if (!folder.getParentFile().exists()) {
@@ -133,238 +169,154 @@ public class AllureTestController extends GenericController implements SampleLis
     // Overwrite folder
     //
     public void setFolderOverwrite(boolean ov) {
-        set(getSchema().getFolderOverwrite(), ov);
+        setProperty(new BooleanProperty(FOLDER_OVERWRITE, ov));
     }
     
     public boolean isFolderOverwrite() {
-        return get(getSchema().getFolderOverwrite());
+        return getPropertyAsBoolean(FOLDER_OVERWRITE, false);
     }
 
     //
     // Stop test on error
     //
     public void setIsCritical(boolean ic) {
-        set(getSchema().getIsCritical(), ic);
+        setProperty(new BooleanProperty(IS_CRITICAL, ic));
     }
     
     public boolean isCriticalTest() {
-        return get(getSchema().getIsCritical());
+        return getPropertyAsBoolean(IS_CRITICAL, false);
     }
 
     //
     // Single step tests
     //
     public void setIsSingleStep(boolean ss) {
-        set(getSchema().getIsSingleStep(), ss);
+        setProperty(new BooleanProperty(IS_SINGLE_STEP, ss));
     }
     
     public boolean isSingleStepTest() {
-        return get(getSchema().getIsSingleStep());
+        return getPropertyAsBoolean(IS_SINGLE_STEP, false);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /**
-     * @see org.apache.jmeter.control.Controller#next()
-     */
-    @Override
-    public Sampler next(){
-        return nextWithoutTransactionSampler();
-    }
-
-///////////////// Transaction Controller - parent ////////////////
-
-    @Override // ------------------------------------------------------------------------------ Надобность под вопросом
-    protected Sampler nextIsAController(Controller controller) throws NextIsNullException {
-        if (!isGenerateParentSample()) {
-            return super.nextIsAController(controller);
-        }
-        Sampler returnValue;
-        Sampler sampler = controller.next();
-        if (sampler == null) {
-            currentReturnedNull(controller);
-            // We need to call the super.next, instead of this.next, which is done in GenericController,
-            // because if we call this.next(), it will return the TransactionSampler, and we do not want that.
-            // We need to get the next real sampler or controller
-            returnValue = super.next();
+    //
+    // Test
+    //
+    public void setTestNameField(String te) {
+        if(!isSingleStepTest()) {
+            setProperty(TEST_NAME, te);
         } else {
-            returnValue = sampler;
+            setProperty(TEST_NAME, "");
         }
-        return returnValue;
     }
 
-////////////////////// Transaction Controller - additional sample //////////////////////////////
-
-    private Sampler nextWithoutTransactionSampler() {
-        if (isFirst()) // must be the start of the subtree
-        {
-            calls = 0;
-            noFailingSamples = 0;
-            res = new SampleResult();
-            res.setSampleLabel(getName());
-            // Assume success
-            res.setSuccessful(true);
-            res.sampleStart();
-            prevEndTime = res.getStartTime();//???
-            pauseTime = 0;
-        }
-        boolean isLast = current==super.subControllersAndSamplers.size();
-        Sampler returnValue = super.next();
-        if (returnValue == null && isLast) // Must be the end of the controller
-        {
-            if (res != null) {
-                // See BUG 55816
-                if (!isIncludeTimers()) {
-                    long processingTimeOfLastChild = res.currentTimeInMillis() - prevEndTime;
-                    pauseTime += processingTimeOfLastChild;
-                }
-                res.setIdleTime(pauseTime+res.getIdleTime());
-                res.sampleEnd();
-                res.setResponseMessage(
-                        TransactionController.NUMBER_OF_SAMPLES_IN_TRANSACTION_PREFIX
-                                + calls + ", number of failing samples : "
-                                + noFailingSamples);
-                if(res.isSuccessful()) {
-                    res.setResponseCodeOK();
-                }
-                notifyListeners();
-            }
-        }
-        else {
-            // We have sampled one of our children
-            calls++;
-        }
-
-        return returnValue;
+    public String getTestNameField() {
+        return getPropertyAsString(TEST_NAME, "");
     }
 
-    /**
-     * @param res {@link SampleResult}
-     * @return true if res is the ParentSampler transactions
-     */
-    public static boolean isFromTransactionController(SampleResult res) {
-        return res.getResponseMessage() != null &&
-                res.getResponseMessage().startsWith(
-                        TransactionController.NUMBER_OF_SAMPLES_IN_TRANSACTION_PREFIX);
-    }
-
-    /**
-     * @see org.apache.jmeter.control.GenericController#triggerEndOfLoop()
-     */
-    @Override
-    public void triggerEndOfLoop() {
-        if(!isGenerateParentSample()) {
-            if (res != null) {
-                res.setIdleTime(pauseTime + res.getIdleTime());
-                res.sampleEnd();
-                res.setSuccessful(TRUE.equals(JMeterContextService.getContext().getVariables().get(JMeterThread.LAST_SAMPLE_OK)));
-                res.setResponseMessage(
-                        TransactionController.NUMBER_OF_SAMPLES_IN_TRANSACTION_PREFIX
-                                + calls + ", number of failing samples : "
-                                + noFailingSamples);
-                notifyListeners();
-            }
+    //
+    // Description
+    //
+    public void setDescriptionField(String de) {
+        if(!isSingleStepTest()) {
+            setProperty(DESCRIPTION, de);
         } else {
-            Sampler subSampler = transactionSampler.getSubSampler();
-            // See Bug 56811
-            // triggerEndOfLoop is called when error occurs to end Main Loop
-            // in this case normal workflow doesn't happen, so we need
-            // to notify the children of TransactionController and
-            // update them with SubSamplerResult
-            if(subSampler instanceof TransactionSampler) {
-                TransactionSampler tc = (TransactionSampler) subSampler;
-                transactionSampler.addSubSamplerResult(tc.getTransactionResult());
-            }
-            transactionSampler.setTransactionDone();
-            // This transaction is done
-            transactionSampler = null;
+            setProperty(DESCRIPTION, "");
         }
-        super.triggerEndOfLoop();
     }
 
-    /**
-     * Create additional SampleEvent in NON Parent Mode
-     */
-    protected void notifyListeners() {
-        // TODO could these be done earlier (or just once?)
-        JMeterContext threadContext = getThreadContext();
-        JMeterVariables threadVars = threadContext.getVariables();
-        SamplePackage pack = (SamplePackage) threadVars.getObject(JMeterThread.PACKAGE_OBJECT);
-        if (pack == null) {
-            // If child of TransactionController is a ThroughputController and TPC does
-            // not sample its children, then we will have this
-            // TODO Should this be at warn level ?
-            log.warn("Could not fetch SamplePackage");
+    public String getDescriptionField() {
+        return getPropertyAsString(DESCRIPTION, "");
+    }
+
+    //
+    // Severity
+    //
+    public void setSeverity(String sev) {
+        if(sev.toLowerCase().equals("blocker") || sev.toLowerCase().equals("critical") || sev.toLowerCase().equals("normal") || sev.toLowerCase().equals("minor") || sev.toLowerCase().equals("trivial")) {
+            setProperty(SEVERITY, sev.toLowerCase());
         } else {
-            SampleEvent event = new SampleEvent(res, threadContext.getThreadGroup().getName(),threadVars, true);
-            // We must set res to null now, before sending the event for the transaction,
-            // so that we can ignore that event in our sampleOccurred method
-            res = null;
-            lnf.notifyListeners(event, pack.getSampleListeners());
+            setProperty(SEVERITY, "normal");
         }
     }
 
-    @Override
-    public void sampleOccurred(SampleEvent se) {
-        if (!isGenerateParentSample()) {
-            // Check if we are still sampling our children
-            if(res != null && !se.isTransactionSampleEvent()) {
-                SampleResult sampleResult = se.getResult();
-                res.setThreadName(sampleResult.getThreadName());
-                res.setBytes(res.getBytesAsLong() + sampleResult.getBytesAsLong());
-                res.setSentBytes(res.getSentBytes() + sampleResult.getSentBytes());
-                if (!isIncludeTimers()) {// Accumulate waiting time for later
-                    pauseTime += sampleResult.getEndTime() - sampleResult.getTime() - prevEndTime;
-                    prevEndTime = sampleResult.getEndTime();
-                }
-                if(!sampleResult.isSuccessful()) {
-                    res.setSuccessful(false);
-                    noFailingSamples++;
-                }
-                res.setAllThreads(sampleResult.getAllThreads());
-                res.setGroupThreads(sampleResult.getGroupThreads());
-                res.setLatency(res.getLatency() + sampleResult.getLatency());
-                res.setConnectTime(res.getConnectTime() + sampleResult.getConnectTime());
-            }
-        }
+    public String getSeverity() {
+        return getPropertyAsString(SEVERITY, "normal");
     }
 
-    @Override
-    public void sampleStarted(SampleEvent e) {
+    //
+    // Epic
+    //
+    public void setEpicField(String ep) {
+        setProperty(EPIC, ep);
     }
 
-    @Override
-    public void sampleStopped(SampleEvent e) {
+    public String getEpicField() {
+        return getPropertyAsString(EPIC, "");
     }
 
-    /**
-     * Whether to include timers and pre/post processor time in overall sample.
-     * @param includeTimers Flag whether timers and pre/post processor should be included in overall sample
-     */
-    public void setIncludeTimers(boolean includeTimers) {
-        set(getSchema().getIncludeTimers(), includeTimers);
+    //
+    // Story
+    //
+    public void setStoryField(String st) {
+        setProperty(STORY, st);
     }
 
-    /**
-     * Whether to include timer and pre/post processor time in overall sample.
-     *
-     * @return boolean (defaults to true for backwards compatibility)
-     */
-    public boolean isIncludeTimers() {
-        return get(getSchema().getIncludeTimers());
+    public String getStoryField() {
+        return getPropertyAsString(STORY, "");
+    }
+
+    //
+    // Feature
+    //
+    public void setFeatureField(String fe) {
+        setProperty(FEATURE, fe);
+    }
+
+    public String getFeatureField() {
+        return getPropertyAsString(FEATURE, "");
+    }
+
+    //
+    // Tags
+    //
+    public void setTagsField(String ta) {
+        setProperty(TAGS, ta);
+    }
+
+    public String getTagsField() {
+        return getPropertyAsString(TAGS, "");
+    }
+
+    //
+    // Parameters
+    //
+    public void setParametersField(String pa) {
+        setProperty(PARAMETERS, pa);
+    }
+
+    public String getParametersField() {
+        return getPropertyAsString(PARAMETERS, "");
+    }
+
+    //
+    // Content type
+    //
+    public void setContentTypeField(String co) {
+        setProperty(CONTENT_TYPE, co);
+    }
+
+    public String getContentTypeField() {
+        return getPropertyAsString(CONTENT_TYPE, "");
+    }
+
+    //
+    // Owner
+    //
+    public void setOwnerField(String ow) {
+        setProperty(OWNER, ow);
+    }
+
+    public String getOwnerField() {
+        return getPropertyAsString(OWNER, "");
     }
 }

@@ -1,6 +1,9 @@
-package org.apache.jmeter.control.gui;
+package kg.apc.jmeter.control.gui;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.io.File;
 
 import java.awt.BorderLayout;
@@ -29,14 +32,14 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 
-import org.apache.jmeter.control.AllureTestController;
+import kg.apc.jmeter.control.AllureTestController;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Argument;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.gui.ArgumentsPanel;
 import org.apache.jmeter.gui.util.CheckBoxPanel;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
-import org.apache.jmeter.visualizers.gui.AbstractListenerGui;
 import org.apache.jmeter.control.gui.AbstractControllerGui;
 import org.apache.jorphan.gui.JLabeledTextField;
 import org.apache.jorphan.gui.layout.VerticalLayout;
@@ -50,19 +53,13 @@ import kg.apc.jmeter.gui.GuiBuilderHelper;
  * Allure Test Controller GUI component.
  */
 public class AllureTestControllerGui extends AbstractControllerGui {
-
-    private JRadioButton blocker; //Severity
-    private JRadioButton critical; //Severity
-    private JRadioButton normal; //Severity
-    private JRadioButton minor; //Severity
-    private JRadioButton trivial; //Severity
-    private ButtonGroup group;
     private JTextField pathToResults; //Path to results
     private JCheckBox folderOverwrite; //Overwrite folder
     private JCheckBox isCritical; //Stop test on error
     private JCheckBox isSingleStep; //Single step tests
     private JLabeledTextField testName; //Test
     private JLabeledTextField description; //Description
+    private JLabeledTextField severity; //Severity
     private JLabeledTextField epic; //Epic
     private JLabeledTextField story; //Story
     private JLabeledTextField feature; //Feature
@@ -75,28 +72,27 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private ArgumentsPanel extraOptionsPanel; //Extra labels (Allure Test Management System only)
 
     public AllureTestControllerGui() {
-        super();
         init();
         initFields();
     }
 
     @Override
     public String getStaticLabel() {
-        return JMeterPluginsUtils.prefixLabel("Allure Test Controller");
+        return "Allure Test Controller";
     }
 
     @Override
     public String getLabelResource() {
-        return getClass().getCanonicalName();
+        return null;
     }
 
     @Override
     public TestElement createTestElement() {
         AllureTestController lc = new AllureTestController();
-        configureTestElement(lc);
+        modifyTestElement(lc);
         return lc;
     }
-
+    
     @Override
     public void clearGui() {
         super.clearGui();
@@ -107,13 +103,13 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     }
 
     private void initFields() { 
-        normal.setSelected(true);
         pathToResults.setText("Choose result folder");
         folderOverwrite.setSelected(false);
         isSingleStep.setSelected(false);
         isCritical.setSelected(false);
         testName.setText("");
         description.setText("");
+        severity.setText("normal");
         epic.setText("");
         story.setText("");
         feature.setText("");
@@ -121,42 +117,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         parameters.setText("");
         contentType.setText("");
         owner.setText("");
-    }
-
-    private JPanel makeSeverityPanel() {
-        JPanel panel = new JPanel();
-        panel.setBorder(BorderFactory.createTitledBorder("Choose severity:"));
-
-        blocker = new JRadioButton("Blocker");
-        critical = new JRadioButton("Critical");
-        normal = new JRadioButton("Normal");
-        minor = new JRadioButton("Minor");
-        trivial = new JRadioButton("Trivial");
-
-        group = new ButtonGroup();
-        group.add(blocker);
-        group.add(critical);
-        group.add(normal);
-        group.add(minor);
-        group.add(trivial);
-
-        panel.add(blocker);
-        panel.add(critical);
-        panel.add(normal);
-        panel.add(minor);
-        panel.add(trivial);
-
-        normal.setSelected(true);
-
-        // So we know which button is selected
-		/*
-        blocker.setActionCommand(RegexExtractor.USE_BLOCKER);
-        critical.setActionCommand(RegexExtractor.USE_CRITICAL);
-        normal.setActionCommand(RegexExtractor.USE_NORMAL);
-        minor.setActionCommand(RegexExtractor.USE_MINOR);
-        trivial.setActionCommand(RegexExtractor.USE_TRIVIAL);
-		*/
-        return panel;
     }
 
     private JPanel makePathToResultsPanel() {
@@ -203,12 +163,13 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         isSingleStep = new JCheckBox("Single step tests");
         testName = new JLabeledTextField("Test");
         description = new JLabeledTextField("Description");
+        severity = new JLabeledTextField("Severity (blocker, critical, normal, minor or trivial)");
         epic = new JLabeledTextField("Epic");
         story = new JLabeledTextField("Story"); 
         feature = new JLabeledTextField("Feature");
-        tags = new JLabeledTextField("Tags");
-        parameters = new JLabeledTextField("Parameters");
-        contentType = new JLabeledTextField("Content type");
+        tags = new JLabeledTextField("Tags (comma separated)");
+        parameters = new JLabeledTextField("Parameters (comma separated)");
+        contentType = new JLabeledTextField("Content type (default text/plain)");
         owner = new JLabeledTextField("Owner");
 
         JPanel panel = new JPanel();
@@ -218,6 +179,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         panel.add(isSingleStep);
         panel.add(testName);
         panel.add(description);
+        panel.add(severity);
         panel.add(epic);
         panel.add(story);
         panel.add(feature);
@@ -244,7 +206,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
 
         return panel;
     }
-
+    
     private JPanel makeLinksPanel() {
         linksPanel = new ArgumentsPanel("Links",null, true, true);
         return linksPanel;
@@ -263,51 +225,45 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     @Override
     public void configure(TestElement el) {
         super.configure(el);
-        if (el instanceof AllureTestController) {
-            AllureTestController atc = (AllureTestController) el;
-            blocker.setSelected(atc.isBlocker());
-            critical.setSelected(atc.isCritical());
-            normal.setSelected(atc.isNormal());
-            minor.setSelected(atc.isMinor());
-            trivial.setSelected(atc.isTrivial());
-            pathToResults.setText(atc.getPathToResults());
-            folderOverwrite.setSelected(atc.isFolderOverwrite());
-            isCritical.setSelected(atc.isCriticalTest());
-            isSingleStep.setSelected(atc.isSingleStepTest());
-            testName.setText(atc.getTestNameField());
-            description.setText(atc.getDescriptionField());
-            epic.setText(atc.getEpicField());
-            story.setText(atc.getStoryField());
-            feature.setText(atc.getFeatureField());
-            tags.setText(atc.getTagsField());
-            parameters.setText(atc.getParametersField());
-            contentType.setText(atc.getContentTypeField());
-            owner.setText(atc.getOwnerField());
-            linksPanel.configure((Arguments) atc.getObjectValue());
-            issuesPanel.configure((Arguments) atc.getObjectValue());
-            extraOptionsPanel.configure((Arguments) atc.getObjectValue());
-        }
+        pathToResults.setText(el.getPropertyAsString(AllureTestController.PATH_TO_RESULTS));
+        folderOverwrite.setSelected(el.getPropertyAsBoolean(AllureTestController.FOLDER_OVERWRITE));
+        isCritical.setSelected(el.getPropertyAsBoolean(AllureTestController.IS_CRITICAL));
+        isSingleStep.setSelected(el.getPropertyAsBoolean(AllureTestController.IS_SINGLE_STEP));
+        testName.setText(el.getPropertyAsString(AllureTestController.TEST_NAME));
+        description.setText(el.getPropertyAsString(AllureTestController.DESCRIPTION));
+        severity.setText(el.getPropertyAsString(AllureTestController.SEVERITY));
+        epic.setText(el.getPropertyAsString(AllureTestController.EPIC));
+        story.setText(el.getPropertyAsString(AllureTestController.STORY));
+        feature.setText(el.getPropertyAsString(AllureTestController.FEATURE));
+        tags.setText(el.getPropertyAsString(AllureTestController.TAGS));
+        parameters.setText(el.getPropertyAsString(AllureTestController.PARAMETERS));
+        contentType.setText(el.getPropertyAsString(AllureTestController.CONTENT_TYPE));
+        owner.setText(el.getPropertyAsString(AllureTestController.OWNER));
+        linksPanel.configure((Arguments) atc.getObjectValue());
+        issuesPanel.configure((Arguments) atc.getObjectValue());
+        extraOptionsPanel.configure((Arguments) atc.getObjectValue());
+        
     }
 
     @Override
     public void modifyTestElement(TestElement te) {
-        super.configureTestElement(te);
+        configureTestElement(te);
         if (te instanceof AllureTestController) {
             AllureTestController atc = (AllureTestController) te;
-            atc.setSeverityGroup(group.getSelection().getActionCommand());
-            atc.setPathToResults(pathToResults.getText());
-            atc.setFolderOverwrite(folderOverwrite.isSelected());
-            atc.setIsCritical(isCritical.isSelected());
-            atc.setIsSingleStep(isSingleStep.isSelected());
-            atc.setTestNameField(testName.getText());
-            atc.setDescriptionField(description.getText());
-            atc.setEpicField(epic.getText());
-            atc.setStoryField(story.getText());
-            atc.setFeatureField(feature.getText());
-            atc.setTagsField(tags.getText());
-            atc.setParametersField(parameters.getText());
-            atc.setContentTypeField(contentType.getText());
-            atc.setOwnerField(owner.getText());
+            atc.setProperty(AllureTestController.PATH_TO_RESULTS, pathToResults.getText());
+            atc.setProperty(AllureTestController.FOLDER_OVERWRITE, folderOverwrite.isSelected());
+            atc.setProperty(AllureTestController.IS_CRITICAL, isCritical.isSelected());
+            atc.setProperty(AllureTestController.IS_SINGLE_STEP, isSingleStep.isSelected());
+            atc.setProperty(AllureTestController.TEST_NAME, testName.getText());
+            atc.setProperty(AllureTestController.DESCRIPTION, description.getText());
+            atc.setProperty(AllureTestController.SEVERITY, severity.getText());
+            atc.setProperty(AllureTestController.EPIC, epic.getText());
+            atc.setProperty(AllureTestController.STORY, story.getText());
+            atc.setProperty(AllureTestController.FEATURE, feature.getText());
+            atc.setProperty(AllureTestController.TAGS, tags.getText());
+            atc.setProperty(AllureTestController.PARAMETERS, parameters.getText());
+            atc.setProperty(AllureTestController.CONTENT_TYPE, contentType.getText());
+            atc.setProperty(AllureTestController.OWNER, owner.getText());
             atc.setArguments((Arguments) linksPanel.createTestElement());
             atc.setArguments((Arguments) issuesPanel.createTestElement());
             atc.setArguments((Arguments) extraOptionsPanel.createTestElement());
@@ -317,15 +273,11 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private void init() { 
         setLayout(new BorderLayout(0, 5));
         setBorder(makeBorder());
-
-        Box box = Box.createVerticalBox();
-        box.add(makeTitlePanel());
-        box.add(makeSeverityPanel());
-        box.add(makePathToResultsPanel()); 
-        box.add(makeMainParameterPanel());
-        box.add(makeLinksPanel());
-        box.add(makeIssuesPanel());
-        box.add(makeExtraOptionsPanel()); 
-        add(box, BorderLayout.NORTH);               
+        add(makeTitlePanel(), BorderLayout.NORTH);
+        add(makePathToResultsPanel()); 
+        add(makeMainParameterPanel());
+        add(makeLinksPanel());
+        add(makeIssuesPanel());
+        add(makeExtraOptionsPanel(), BorderLayout.SOUTH);
     }
 }
