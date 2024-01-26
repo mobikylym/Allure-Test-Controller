@@ -1,84 +1,60 @@
-package kg.apc.jmeter.control; 
+package mobikylym.jmeter.control; 
 
 import java.io.Serializable;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
-import org.apache.jmeter.samplers.SampleEvent; 
+import org.apache.jmeter.config.Arguments;
+import org.apache.jmeter.control.NextIsNullException;
+import org.apache.jmeter.control.TransactionSampler;
+import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.control.TransactionController;
-import org.apache.jmeter.extractor.RegexExtractor;
-import org.apache.jmeter.control.GenericController;
-import org.apache.jmeter.testelement.schema.PropertiesAccessor;
-import org.apache.jmeter.testelement.property.BooleanProperty;
-import org.apache.jmeter.testelement.property.StringProperty;
+//import org.apache.jmeter.testelement.schema.PropertiesAccessor;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterThread;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.threads.ListenerNotifier;
 import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.testelement.property.BooleanProperty;
+import org.apache.jmeter.testelement.property.JMeterProperty;
+import org.apache.jmeter.testelement.property.StringProperty;
+import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ------------------------------------Здесь добавить описание класса
+ * Transaction Controller to measure transaction times
+ *
+ * There are two different modes for the controller:
+ * - generate additional total sample after nested samples (as in JMeter 2.2)
+ * - generate parent sampler containing the nested samples
+ *
  */
-public class AllureTestController extends TransactionController implements Serializable {
-    
-    public static final String PATH_TO_RESULTS = "AllureTestController.pathToResults";
-    public static final String FOLDER_OVERWRITE = "AllureTestController.folderOverwrite";
-    public static final String IS_CRITICAL = "AllureTestController.isCritical";
-    public static final String IS_SINGLE_STEP = "AllureTestController.isSingleStep";
-    public static final String TEST_NAME = "AllureTestController.testName";
-    public static final String DESCRIPTION = "AllureTestController.description";
-    public static final String SEVERITY = "AllureTestController.severity";
-    public static final String EPIC = "AllureTestController.epic";
-    public static final String STORY = "AllureTestController.story";
-    public static final String FEATURE = "AllureTestController.feature";
-    public static final String TAGS = "AllureTestController.tags";
-    public static final String PARAMETERS = "AllureTestController.parameters";
-    public static final String CONTENT_TYPE = "AllureTestController.contentType";
-    public static final String OWNER = "AllureTestController.owner";
-    // Подумать, как добавить сюда таблицы
+public class AllureTestController extends TransactionController {
 
-    private static final String TRUE = Boolean.toString(true); // i.e. "true"
+    //private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
 
-    private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
-
-    private List<AllureTestController> subControllersAndSamplers = new ArrayList<>();
-
-    private transient ListenerNotifier lnf;
-    private transient SampleResult res;
-
-    /**
-     * Only used in NON parent Mode
-     */
-    private transient int calls;
-
-    /**
-     * Only used in NON parent Mode
-     */
-    private transient int noFailingSamples;
-
-    /**
-     * Cumulated pause time to exclude timer and post/pre processor times
-     * Only used in NON parent Mode
-     */
-    private transient long pauseTime;
-
-    /**
-     * Previous end time
-     * Only used in NON parent Mode
-     */
-    private transient long prevEndTime;
+    public static final String ATC_PATH_TO_RESULTS = "AllureTestController.pathToResults";
+    public static final String ATC_FOLDER_OVERWRITE = "AllureTestController.folderOverwrite";
+    public static final String ATC_IS_CRITICAL = "AllureTestController.isCritical";
+    public static final String ATC_IS_SINGLE_STEP = "AllureTestController.isSingleStep";
+    public static final String ATC_TEST_NAME = "AllureTestController.testName";
+    public static final String ATC_DESCRIPTION = "AllureTestController.description";
+    public static final String ATC_SEVERITY = "AllureTestController.severity";
+    public static final String ATC_EPIC = "AllureTestController.epic";
+    public static final String ATC_STORY = "AllureTestController.story";
+    public static final String ATC_FEATURE = "AllureTestController.feature";
+    public static final String ATC_TAGS = "AllureTestController.tags";
+    public static final String ATC_PARAMETERS = "AllureTestController.parameters";
+    public static final String ATC_CONTENT_TYPE = "AllureTestController.contentType";
+    public static final String ATC_OWNER = "AllureTestController.owner";
+    public static final String ATC_LINKS = "AllureTestController.links";
+    public static final String ATC_ISSUES = "AllureTestController.issues";
+    public static final String ATC_EXTRA_LABELS = "AllureTestController.extraLabels";
 
     /**
      * Creates a Allure Test Controller
@@ -86,116 +62,54 @@ public class AllureTestController extends TransactionController implements Seria
     public AllureTestController() {
         super();
     }
-/* 
-    @Override
-    public PropertiesAccessor<? extends AllureTestController> getProps() {
-        return new PropertiesAccessor<>(this, getSchema());
-    }*/
 
     @Override
-    protected Object readResolve(){
-        super.readResolve();
-        lnf = new ListenerNotifier();
-        return this;
+    public Sampler next() {
+        return super.next();
     }
 
     //
     // Path to results
     //
     public void setPathToResults(String pathToResults) {
-        setProperty(PATH_TO_RESULTS, pathToResults);
+        setProperty(ATC_PATH_TO_RESULTS, pathToResults);
     }
 
     public String getPathToResults() {
-        return getPropertyAsString(PATH_TO_RESULTS);
-    }
-
-    private List<AllureTestController> getSameSubControllers() {
-        return subControllersAndSamplers;
-    }
-
-    protected void checkSameSubControllers() {
-        for (AllureTestController te : subControllersAndSamplers) {
-            if(te instanceof AllureTestController) {
-                log.error("AllureTestController can not be in same Controller.");
-                    return;
-            }
-        }
-    }
-
-    // Проверка валидности пути к папке + создание папки, если это возможно
-    private void testStarted() {
-        checkSameSubControllers();
-
-        String pathToResults = getPathToResults();
-        File folder = new File(pathToResults);
-        if (!folder.getParentFile().exists()) {
-            log.error("Folder path {} does not exist.", folder.getParent());
-            return;
-        }
-        if (!folder.exists()) {
-            try {
-                if (folder.mkdir()) {
-                    log.info("Directory {} created.", pathToResults);
-                } else {
-                    log.error("Failed to create directory {}.", pathToResults);
-                    return;
-                }
-                } catch (SecurityException ex) {
-                    log.error("Permission denied: Cannot create directory {}", pathToResults, ex);
-                    return;
-                }
-        } else {
-            if (!folder.isDirectory()) {
-                log.error("{} is not directory.", pathToResults);
-                return;
-            } else {
-                if (isFolderOverwrite()) { // Потом нужно будет перенести очистку папки на момент начала выполнения контроллера
-                    try {
-                        Files.walk(Paths.get(pathToResults))
-                            .map(Path::toFile)
-                            .forEach(File::delete);
-                            log.info("Directory {} cleared.", pathToResults);
-                    } catch (IOException ex) {
-                    log.warn("Failed to clear directory {}.", pathToResults, ex);
-                    return;
-                    }
-                }
-            }
-        } 
+        return getPropertyAsString(ATC_PATH_TO_RESULTS);
     }
 
     //
     // Overwrite folder
     //
     public void setFolderOverwrite(boolean ov) {
-        setProperty(new BooleanProperty(FOLDER_OVERWRITE, ov));
+        setProperty(new BooleanProperty(ATC_FOLDER_OVERWRITE, ov));
     }
     
     public boolean isFolderOverwrite() {
-        return getPropertyAsBoolean(FOLDER_OVERWRITE, false);
+        return getPropertyAsBoolean(ATC_FOLDER_OVERWRITE, false);
     }
 
     //
     // Stop test on error
     //
     public void setIsCritical(boolean ic) {
-        setProperty(new BooleanProperty(IS_CRITICAL, ic));
+        setProperty(new BooleanProperty(ATC_IS_CRITICAL, ic));
     }
     
     public boolean isCriticalTest() {
-        return getPropertyAsBoolean(IS_CRITICAL, false);
+        return getPropertyAsBoolean(ATC_IS_CRITICAL, false);
     }
 
     //
     // Single step tests
     //
     public void setIsSingleStep(boolean ss) {
-        setProperty(new BooleanProperty(IS_SINGLE_STEP, ss));
+        setProperty(new BooleanProperty(ATC_IS_SINGLE_STEP, ss));
     }
     
     public boolean isSingleStepTest() {
-        return getPropertyAsBoolean(IS_SINGLE_STEP, false);
+        return getPropertyAsBoolean(ATC_IS_SINGLE_STEP, false);
     }
 
     //
@@ -203,14 +117,14 @@ public class AllureTestController extends TransactionController implements Seria
     //
     public void setTestNameField(String te) {
         if(!isSingleStepTest()) {
-            setProperty(TEST_NAME, te);
+            setProperty(ATC_TEST_NAME, te);
         } else {
-            setProperty(TEST_NAME, "");
+            setProperty(ATC_TEST_NAME, "");
         }
     }
 
     public String getTestNameField() {
-        return getPropertyAsString(TEST_NAME, "");
+        return getPropertyAsString(ATC_TEST_NAME, "");
     }
 
     //
@@ -218,14 +132,14 @@ public class AllureTestController extends TransactionController implements Seria
     //
     public void setDescriptionField(String de) {
         if(!isSingleStepTest()) {
-            setProperty(DESCRIPTION, de);
+            setProperty(ATC_DESCRIPTION, de);
         } else {
-            setProperty(DESCRIPTION, "");
+            setProperty(ATC_DESCRIPTION, "");
         }
     }
 
     public String getDescriptionField() {
-        return getPropertyAsString(DESCRIPTION, "");
+        return getPropertyAsString(ATC_DESCRIPTION, "");
     }
 
     //
@@ -233,90 +147,124 @@ public class AllureTestController extends TransactionController implements Seria
     //
     public void setSeverity(String sev) {
         if(sev.toLowerCase().equals("blocker") || sev.toLowerCase().equals("critical") || sev.toLowerCase().equals("normal") || sev.toLowerCase().equals("minor") || sev.toLowerCase().equals("trivial")) {
-            setProperty(SEVERITY, sev.toLowerCase());
+            setProperty(ATC_SEVERITY, sev.toLowerCase());
         } else {
-            setProperty(SEVERITY, "normal");
+            setProperty(ATC_SEVERITY, "normal");
         }
     }
 
     public String getSeverity() {
-        return getPropertyAsString(SEVERITY, "normal");
+        return getPropertyAsString(ATC_SEVERITY, "normal");
     }
 
     //
     // Epic
     //
     public void setEpicField(String ep) {
-        setProperty(EPIC, ep);
+        setProperty(ATC_EPIC, ep);
     }
 
     public String getEpicField() {
-        return getPropertyAsString(EPIC, "");
+        return getPropertyAsString(ATC_EPIC, "");
     }
 
     //
     // Story
     //
     public void setStoryField(String st) {
-        setProperty(STORY, st);
+        setProperty(ATC_STORY, st);
     }
 
     public String getStoryField() {
-        return getPropertyAsString(STORY, "");
+        return getPropertyAsString(ATC_STORY, "");
     }
 
     //
     // Feature
     //
     public void setFeatureField(String fe) {
-        setProperty(FEATURE, fe);
+        setProperty(ATC_FEATURE, fe);
     }
 
     public String getFeatureField() {
-        return getPropertyAsString(FEATURE, "");
+        return getPropertyAsString(ATC_FEATURE, "");
     }
 
     //
     // Tags
     //
     public void setTagsField(String ta) {
-        setProperty(TAGS, ta);
+        setProperty(ATC_TAGS, ta);
     }
 
     public String getTagsField() {
-        return getPropertyAsString(TAGS, "");
+        return getPropertyAsString(ATC_TAGS, "");
     }
 
     //
     // Parameters
     //
     public void setParametersField(String pa) {
-        setProperty(PARAMETERS, pa);
+        setProperty(ATC_PARAMETERS, pa);
     }
 
     public String getParametersField() {
-        return getPropertyAsString(PARAMETERS, "");
+        return getPropertyAsString(ATC_PARAMETERS, "");
     }
 
     //
     // Content type
     //
     public void setContentTypeField(String co) {
-        setProperty(CONTENT_TYPE, co);
+        setProperty(ATC_CONTENT_TYPE, co);
     }
 
     public String getContentTypeField() {
-        return getPropertyAsString(CONTENT_TYPE, "");
+        return getPropertyAsString(ATC_CONTENT_TYPE, "");
     }
 
     //
     // Owner
     //
     public void setOwnerField(String ow) {
-        setProperty(OWNER, ow);
+        setProperty(ATC_OWNER, ow);
     }
 
     public String getOwnerField() {
-        return getPropertyAsString(OWNER, "");
+        return getPropertyAsString(ATC_OWNER, "");
     }
+
+    //
+    // Links
+    //
+    public void setLinksField(String li) {
+        setProperty(ATC_LINKS, li);
+    }
+
+    public String getLinksField() {
+        return getPropertyAsString(ATC_LINKS, "");
+    }
+
+    //
+    // Issues
+    //
+    public void setIssuesField(String is) {
+        setProperty(ATC_ISSUES, is);
+    }
+
+    public String getIssuesField() {
+        return getPropertyAsString(ATC_ISSUES, "");
+    }
+
+    //
+    // Extra Labels
+    //
+    public void setExtraLabelsField(String ex) {
+        setProperty(ATC_EXTRA_LABELS, ex);
+    }
+
+    public String getExtraLabelsField() {
+        return getPropertyAsString(ATC_EXTRA_LABELS, "");
+    }
+
 }
