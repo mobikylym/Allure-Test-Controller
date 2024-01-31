@@ -1,17 +1,33 @@
 package mobikylym.jmeter.control; 
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.control.NextIsNullException;
 import org.apache.jmeter.control.TransactionSampler;
+import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.gui.tree.JMeterTreeNode;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.control.TransactionController;
+import org.apache.jmeter.control.GenericController;
+import org.apache.jmeter.control.Controller;
 //import org.apache.jmeter.testelement.schema.PropertiesAccessor;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
@@ -19,6 +35,7 @@ import org.apache.jmeter.threads.JMeterThread;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.threads.ListenerNotifier;
 import org.apache.jmeter.threads.SamplePackage;
+import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.testelement.property.StringProperty;
@@ -26,17 +43,17 @@ import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Transaction Controller to measure transaction times
- *
- * There are two different modes for the controller:
- * - generate additional total sample after nested samples (as in JMeter 2.2)
- * - generate parent sampler containing the nested samples
- *
- */
-public class AllureTestController extends TransactionController {
+import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
+import org.apache.jmeter.samplers.SampleResult;
+import org.apache.jmeter.protocol.http.control.HeaderManager;
+import org.apache.jmeter.protocol.http.control.Header;
 
-    //private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
+
+
+
+public class AllureTestController extends GenericController {
+
+    private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
 
     public static final String ATC_PATH_TO_RESULTS = "AllureTestController.pathToResults";
     public static final String ATC_FOLDER_OVERWRITE = "AllureTestController.folderOverwrite";
@@ -56,8 +73,11 @@ public class AllureTestController extends TransactionController {
     public static final String ATC_ISSUES = "AllureTestController.issues";
     public static final String ATC_EXTRA_LABELS = "AllureTestController.extraLabels";
 
+    private Map<Integer, Boolean> processedSamplers = new HashMap<>();
+
+    
     /**
-     * Creates a Allure Test Controller
+     * Creates an Allure Test Controller
      */
     public AllureTestController() {
         super();
@@ -65,8 +85,94 @@ public class AllureTestController extends TransactionController {
 
     @Override
     public Sampler next() {
+        if (isFirst()) {
+            pathCheck();
+        }    
+        String filePrefix = UUID.randomUUID().toString();
+        JMeterContext ctx = JMeterContextService.getContext();
+        Sampler sampler = ctx.getCurrentSampler();
+        SampleResult result = ctx.getPreviousResult();
+        if (sampler != null && !isFirst()) {
+            int samplerHash = result.hashCode();
+            if (!processedSamplers.containsKey(samplerHash)) {
+                try {
+                    if (sampler instanceof HTTPSamplerProxy) {
+                        writeToFile(getPathToResults(), filePrefix + "--request.txt", formatRequestData(result));
+                        writeToFile(getPathToResults(), filePrefix + "--response.txt", formatResponseData(result));
+                    } else {
+                        writeToFile(getPathToResults(), filePrefix + "--request.txt", result.getSamplerData().toString());
+                        writeToFile(getPathToResults(), filePrefix + "--response.txt", result.getResponseDataAsString());
+                    }
+                    processedSamplers.put(samplerHash, true);
+                } catch (IOException ex) {
+                    log.error("Failed to write request or response file.", ex);
+                }
+            }
+        }
         return super.next();
     }
+
+    private void writeToFile(File folder, String filename, String data) throws IOException {
+        File file = new File(folder, filename);
+        FileUtils.writeStringToFile(file, data, "UTF-8");
+    }
+
+    private String formatRequestData(SampleResult result) {
+        return result.getRequestHeaders().toString().replaceAll("[aA]uthorization:.*", "Authorization: XXX (Has been replaced for safety)")
+            .replaceAll("[xX]-[aA]pi-[tT]oken:.*", "X-Api-Token: XXX (Has been replaced for safety)") + "\n" + result.getSamplerData().toString();
+    }
+
+    private String formatResponseData(SampleResult result) {
+        String contentType = result.getContentType();
+        String responseData = result.getResponseHeaders().toString() + "\nRESPONSE DATA:\n";
+        if (contentType.contains("json")) {
+            responseData += formatJson(result.getResponseDataAsString());
+        } else {
+            responseData += result.getResponseDataAsString();
+        }
+        return responseData;
+    }
+
+
+    private String formatJson(String json) {
+        int level = 0;
+        boolean inQuotes = false;
+        boolean isEscaped = false;
+        StringBuilder prettyJson = new StringBuilder();
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\"' && !isEscaped) {
+                inQuotes = !inQuotes;
+            }
+            if (!inQuotes) {
+                if (c == '{' || c == '[') {
+                    prettyJson.append(c);
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", ++level));
+                } else if (c == '}' || c == ']') {
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", --level));
+                    prettyJson.append(c);
+                } else if (c == ',') {
+                    prettyJson.append(c);
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", level));
+                } else {
+                    prettyJson.append(c);
+                }
+            } else {
+                prettyJson.append(c);
+            }
+            isEscaped = c == '\\' && !isEscaped;
+        }
+        return prettyJson.toString();
+    }
+    
+    private static String repeat(String str, int times) {
+        return new String(new char[times]).replace("\0", str);
+    }
+
+    
 
     //
     // Path to results
@@ -75,8 +181,9 @@ public class AllureTestController extends TransactionController {
         setProperty(ATC_PATH_TO_RESULTS, pathToResults);
     }
 
-    public String getPathToResults() {
-        return getPropertyAsString(ATC_PATH_TO_RESULTS);
+    public File getPathToResults() {
+        File folder = new File(getPropertyAsString(ATC_PATH_TO_RESULTS), "allure-results");
+        return folder;
     }
 
     //
@@ -146,15 +253,19 @@ public class AllureTestController extends TransactionController {
     // Severity
     //
     public void setSeverity(String sev) {
-        if(sev.toLowerCase().equals("blocker") || sev.toLowerCase().equals("critical") || sev.toLowerCase().equals("normal") || sev.toLowerCase().equals("minor") || sev.toLowerCase().equals("trivial")) {
-            setProperty(ATC_SEVERITY, sev.toLowerCase());
-        } else {
+        if(sev.matches("\\s*")) {
             setProperty(ATC_SEVERITY, "normal");
+        } else {
+            setProperty(ATC_SEVERITY, sev);
         }
     }
 
     public String getSeverity() {
-        return getPropertyAsString(ATC_SEVERITY, "normal");
+        if(getPropertyAsString(ATC_SEVERITY).matches("\\s*")) {
+            return "normal";
+        } else {
+            return getPropertyAsString(ATC_SEVERITY, "normal");
+        }
     }
 
     //
@@ -266,5 +377,49 @@ public class AllureTestController extends TransactionController {
     public String getExtraLabelsField() {
         return getPropertyAsString(ATC_EXTRA_LABELS, "");
     }
+
+    //
+    // Folder path check and overwright if needed
+    //
+    private void pathCheck() {
+        File folder = getPathToResults();
+
+        if (!folder.getParentFile().exists()) {
+            log.error("Directory \"{}\" does not exist.", folder.getParentFile());
+            JMeterContextService.getContext().getEngine().stopTest();
+            return;
+        }
+
+        if (!folder.exists()) {
+            try {
+                if (folder.mkdir()) {
+                    log.info("Directory \"{}\" created.", folder);
+                } else {
+                    log.error("Failed to create directory \"{}\".", folder);
+                    JMeterContextService.getContext().getEngine().stopTest();
+                    return;
+                }
+            } catch (SecurityException ex) {
+                log.error("Permission denied: Cannot create directory \"{}\"", folder, ex);
+                JMeterContextService.getContext().getEngine().stopTest();
+                return;
+            }
+            return;
+        } else {
+            if (isFolderOverwrite()) {
+                try {
+                    FileUtils.cleanDirectory(folder); 
+                    log.info("Directory \"{}\" cleared.", folder);
+                } catch (IOException ex) {
+                    log.error("Failed to clear directory \"{}\".", folder, ex);
+                    return;
+                }
+            }
+            return;
+        }
+    }
+
+
+
 
 }

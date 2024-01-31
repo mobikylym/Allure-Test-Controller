@@ -91,7 +91,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_IS_SINGLE_STEP, isSingleStep.isSelected());
             obj.setProperty(AllureTestController.ATC_TEST_NAME, testName.getText());
             obj.setProperty(AllureTestController.ATC_DESCRIPTION, description.getText());
-            obj.setProperty(AllureTestController.ATC_SEVERITY, (String) severity.getSelectedItem());            
+            obj.setProperty(AllureTestController.ATC_SEVERITY, (String) severity.getEditor().getItem());            
             obj.setProperty(AllureTestController.ATC_EPIC, epic.getText());
             obj.setProperty(AllureTestController.ATC_STORY, story.getText());
             obj.setProperty(AllureTestController.ATC_FEATURE, feature.getText());
@@ -154,7 +154,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         editConstraints.weightx = 1.0;
         editConstraints.fill = GridBagConstraints.HORIZONTAL;
     
-        JLabel label = new JLabel("Path to results: ", JLabel.RIGHT);
+        JLabel label = new JLabel("Results folder path: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;
         labelConstraints.gridy = 1;
         mainPanel.add(label, labelConstraints);
@@ -216,14 +216,16 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             if (evt.getStateChange() == ItemEvent.SELECTED) {
 
                 testName.setEnabled(false);
-                testName.setText("");
+                testName.setText("Same as sampler name");
                 description.setEnabled(false);
-                description.setText("");
+                description.setText("Same as sampler comment");
 
             } else {
 
                 testName.setEnabled(true);
+                testName.setText("");
                 description.setEnabled(true);
+                description.setText("");
 
             }
         });
