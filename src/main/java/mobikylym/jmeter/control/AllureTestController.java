@@ -135,7 +135,7 @@ public class AllureTestController extends GenericController {
         "\",\"stage\":\"finished\",\"start\":" + startTime +
         ",\"uuid\":\"" + uuid + 
         "\",\"historyId\":\"" + uuid +
-        "\",\"fullName\":\"" + testName +
+        "\",\"fullName\":\"" + threadName + "  " + testName +
         "\",\"parameters\":[" + testParametersConstructor() +
         "],\"links\":[" + linkConstructor() +
         "],\"labels\":[" + getEpicField() + getStoryField() + getFeatureField() +
@@ -154,7 +154,7 @@ public class AllureTestController extends GenericController {
         ",\"stop\":" + result.getEndTime() +
         ",";
 
-        if (!isWithoutContent()) {
+        if (!isWithoutContent() || (isCriticalTest() && !result.isSuccessful())) {
             try {
                 if (sampler instanceof HTTPSamplerProxy) {
                     writeToFile(getPathToResults(), uuid + "-request-attachment", formatRequestData(result));
