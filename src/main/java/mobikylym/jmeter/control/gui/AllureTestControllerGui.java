@@ -24,6 +24,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JCheckBox isSingleStep = new JCheckBox("Single step tests  ", false); //Single step tests
     private JCheckBox withoutContent = new JCheckBox("Without content  ", false); //Without content
     private JCheckBox withoutNonHTTP = new JCheckBox("Without non-HTTP steps  ", false); //Without non-HTTP steps
+    private JCheckBox debugMode = new JCheckBox("Debug mode  ", false); //Debug mode
     private JTextField testName = new JTextField(); //Test
     private JTextField description = new JTextField(); //Description
     private JComboBox<String> severity = new JComboBox<>(new String[] {"blocker", "critical", "normal", "minor", "trivial"}); //Severity
@@ -67,6 +68,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         isCritical.setSelected(false);
         withoutContent.setSelected(false);
         withoutNonHTTP.setSelected(false);
+        debugMode.setSelected(false);
         testName.setText("");
         description.setText("");
         severity.setSelectedItem("normal");
@@ -93,6 +95,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_IS_SINGLE_STEP, isSingleStep.isSelected());
             obj.setProperty(AllureTestController.ATC_WITHOUT_CONTENT, withoutContent.isSelected());
             obj.setProperty(AllureTestController.ATC_WITHOUT_NON_HTTP, withoutNonHTTP.isSelected());
+            obj.setProperty(AllureTestController.ATC_DEBUG_MODE, debugMode.isSelected());
             obj.setProperty(AllureTestController.ATC_TEST_NAME, testName.getText());
             obj.setProperty(AllureTestController.ATC_DESCRIPTION, description.getText());
             obj.setProperty(AllureTestController.ATC_SEVERITY, (String) severity.getEditor().getItem());            
@@ -117,6 +120,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         isSingleStep.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_IS_SINGLE_STEP));
         withoutContent.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_WITHOUT_CONTENT));
         withoutNonHTTP.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_WITHOUT_NON_HTTP));
+        debugMode.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_DEBUG_MODE));
         testName.setText(element.getPropertyAsString(AllureTestController.ATC_TEST_NAME));
         description.setText(element.getPropertyAsString(AllureTestController.ATC_DESCRIPTION));
         severity.setSelectedItem(element.getPropertyAsString(AllureTestController.ATC_SEVERITY));
@@ -205,6 +209,10 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         checkBoxConstraints.gridx = 5;
         checkBoxConstraints.gridy = 2;
         mainPanel.add(withoutNonHTTP, checkBoxConstraints);
+
+        checkBoxConstraints.gridx = 6;
+        checkBoxConstraints.gridy = 2;
+        mainPanel.add(debugMode, checkBoxConstraints);
 
         JLabel nameLabel = new JLabel("Test name: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;

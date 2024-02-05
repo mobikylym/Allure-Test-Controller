@@ -35,6 +35,7 @@ public class AllureTestController extends GenericController {
     public static final String ATC_IS_SINGLE_STEP = "AllureTestController.isSingleStep";
     public static final String ATC_WITHOUT_CONTENT = "AllureTestController.withoutContent";
     public static final String ATC_WITHOUT_NON_HTTP = "AllureTestController.withoutNonHTTP";
+    public static final String ATC_DEBUG_MODE = "AllureTestController.debugMode";
     public static final String ATC_TEST_NAME = "AllureTestController.testName";
     public static final String ATC_DESCRIPTION = "AllureTestController.description";
     public static final String ATC_SEVERITY = "AllureTestController.severity";
@@ -134,7 +135,7 @@ public class AllureTestController extends GenericController {
         "\",\"stage\":\"finished\",\"start\":" + startTime +
         ",\"uuid\":\"" + uuid + 
         "\",\"historyId\":\"" + uuid +
-        "\",\"fullName\":\""/* + getEpicField() + "." + getStoryField() + "." + getFeatureField() + ") "*/ + testName +
+        "\",\"fullName\":\"" + testName +
         "\",\"parameters\":[" + testParametersConstructor() +
         "],\"links\":[" + linkConstructor() +
         "],\"labels\":[" + getEpicField() + getStoryField() + getFeatureField() +
@@ -149,9 +150,9 @@ public class AllureTestController extends GenericController {
         "\",\"status\":\"" + stepStatus +
         "\",\"stage\":\"finished\",\"steps\":[" + getAssertionResults(result) +
         "],\"statusDetails\":{\"message\":\"" + failureMessage +
-        "\"},\"start\":\"" + result.getStartTime() +
-        "\",\"stop\":\"" + result.getEndTime() +
-        "\",";
+        "\"},\"start\":" + result.getStartTime() +
+        ",\"stop\":" + result.getEndTime() +
+        ",";
 
         if (!isWithoutContent()) {
             try {
@@ -182,7 +183,9 @@ public class AllureTestController extends GenericController {
         ",\"status\":\"" + status +
         "\",\"statusDetails\":{\"message\":\"" + failureMessage +
         "\"}}";
-        testFile = formatJson(testFile);
+        if (isDebugMode()) {
+            testFile = formatJson(testFile);
+        }
 
         try {
             writeToFile(getPathToResults(), uuid + "-result.json", testFile);
@@ -377,6 +380,17 @@ public class AllureTestController extends GenericController {
     
     public boolean isWithoutNonHTTP() {
         return getPropertyAsBoolean(ATC_WITHOUT_NON_HTTP, false);
+    }
+
+    //
+    // Debug mode
+    //
+    public void setDebugMode(boolean dm) {
+        setProperty(new BooleanProperty(ATC_DEBUG_MODE, dm));
+    }
+    
+    public boolean isDebugMode() {
+        return getPropertyAsBoolean(ATC_DEBUG_MODE, false);
     }
 
     //
