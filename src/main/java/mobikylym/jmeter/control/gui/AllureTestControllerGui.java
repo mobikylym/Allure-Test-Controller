@@ -195,7 +195,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         checkBoxConstraints.anchor = GridBagConstraints.WEST;
 
         checkBoxConstraints.gridx = 1;
-        checkBoxConstraints.gridy = 2;
+        checkBoxConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(folderOverwrite, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 2;
@@ -215,10 +215,10 @@ public class AllureTestControllerGui extends AbstractControllerGui {
 
         JLabel nameLabel = new JLabel("Test name: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;
-        labelConstraints.gridy += 2;
+        labelConstraints.gridy = checkBoxConstraints.gridy + 1;
         mainPanel.add(nameLabel, labelConstraints);
 
-        editConstraints.gridy += 2;
+        editConstraints.gridy = labelConstraints.gridy;
         editConstraints.gridwidth = 8;
         mainPanel.add(testName, editConstraints);
 
@@ -298,28 +298,28 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         mainPanel.add(owner, editConstraints);
 
         separatorConstraints.insets = new Insets(3, 0, 0, 0);
-        separatorConstraints.gridy = 12;
+        separatorConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(new JSeparator(), separatorConstraints);
 
         JLabel linksLabel = new JLabel("Links (format: name-comma-URL)", JLabel.CENTER);
         labelConstraints.anchor = GridBagConstraints.CENTER;
         labelConstraints.insets = new Insets(3, 0, 0, 0);
-        labelConstraints.gridy += 2;
+        labelConstraints.gridy = separatorConstraints.gridy + 1;
         labelConstraints.gridwidth = 9;
         mainPanel.add(linksLabel, labelConstraints);
 
         editConstraints.gridx = 0;
-        editConstraints.gridy += 3;
+        editConstraints.gridy = labelConstraints.gridy + 1;
         editConstraints.gridwidth = 9;
         JScrollPane scrollPane1 = new JScrollPane(links);
         scrollPane1.setPreferredSize(new Dimension(200, 77));
         mainPanel.add(scrollPane1, editConstraints);
 
         JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only)", JLabel.CENTER);
-        labelConstraints.gridy += 2;
+        labelConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(extraLabelsLabel, labelConstraints);
 
-        editConstraints.gridy += 2;
+        editConstraints.gridy = labelConstraints.gridy + 1;
         JScrollPane scrollPane2 = new JScrollPane(extraLabels);
         scrollPane2.setPreferredSize(new Dimension(200, 172));
         mainPanel.add(scrollPane2, editConstraints);
