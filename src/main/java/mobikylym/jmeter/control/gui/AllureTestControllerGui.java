@@ -199,41 +199,34 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         mainPanel.add(folderOverwrite, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 2;
-        checkBoxConstraints.gridy = 2;
         mainPanel.add(isCritical, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 3;
-        checkBoxConstraints.gridy = 2;
         mainPanel.add(isSingleStep, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 4;
-        checkBoxConstraints.gridy = 2;
         mainPanel.add(withoutContent, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 5;
-        checkBoxConstraints.gridy = 2;
         mainPanel.add(withoutNonHTTP, checkBoxConstraints);
 
         checkBoxConstraints.gridx = 6;
-        checkBoxConstraints.gridy = 2;
         mainPanel.add(debugMode, checkBoxConstraints);
 
         JLabel nameLabel = new JLabel("Test name: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;
-        labelConstraints.gridy = 3;
+        labelConstraints.gridy += 2;
         mainPanel.add(nameLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 3;
+        editConstraints.gridy += 2;
         editConstraints.gridwidth = 8;
         mainPanel.add(testName, editConstraints);
 
         JLabel descLabel = new JLabel("Description: ", JLabel.RIGHT);
-        labelConstraints.gridy = 4;
+        labelConstraints.gridy ++;
         mainPanel.add(descLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 4;
+        editConstraints.gridy ++;
         mainPanel.add(description, editConstraints);
 
         isSingleStep.addItemListener(evt -> {
@@ -255,60 +248,53 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         });
 
         JLabel severityLabel = new JLabel("Severity: ", JLabel.RIGHT);
-        labelConstraints.gridy = 5;
+        labelConstraints.gridy ++;
         mainPanel.add(severityLabel, labelConstraints);
 
         severity.setEditable(true);
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 5;
+        editConstraints.gridy ++;
         mainPanel.add(severity, editConstraints);
 
         JLabel epicLabel = new JLabel("Epic: ", JLabel.RIGHT);
-        labelConstraints.gridy = 6;
+        labelConstraints.gridy ++;
         mainPanel.add(epicLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 6;
+        editConstraints.gridy ++;
         mainPanel.add(epic, editConstraints);
 
         JLabel storyLabel = new JLabel("Story: ", JLabel.RIGHT);
-        labelConstraints.gridy = 7;
+        labelConstraints.gridy ++;
         mainPanel.add(storyLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 7;
+        editConstraints.gridy ++;
         mainPanel.add(story, editConstraints);
 
         JLabel featureLabel = new JLabel("Feature: ", JLabel.RIGHT);
-        labelConstraints.gridy = 8;
+        labelConstraints.gridy ++;
         mainPanel.add(featureLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 8;
+        editConstraints.gridy ++;
         mainPanel.add(feature, editConstraints);
 
         JLabel tagsLabel = new JLabel("Tags (comma-delimited): ", JLabel.RIGHT);
-        labelConstraints.gridy = 9;
+        labelConstraints.gridy ++;
         mainPanel.add(tagsLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 9;
+        editConstraints.gridy ++;
         mainPanel.add(tags, editConstraints);
 
         JLabel parametersLabel = new JLabel("Params (comma-delimited): ", JLabel.RIGHT);
-        labelConstraints.gridy = 10;
+        labelConstraints.gridy ++;
         mainPanel.add(parametersLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 10;
+        editConstraints.gridy ++;
         mainPanel.add(parameters, editConstraints);
 
         JLabel ownerLabel = new JLabel("Owner: ", JLabel.RIGHT);
-        labelConstraints.gridy = 11;
+        labelConstraints.gridy ++;
         mainPanel.add(ownerLabel, labelConstraints);
 
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 11;
+        editConstraints.gridy ++;
         mainPanel.add(owner, editConstraints);
 
         separatorConstraints.insets = new Insets(3, 0, 0, 0);
@@ -318,22 +304,22 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         JLabel linksLabel = new JLabel("Links (format: name-comma-URL)", JLabel.CENTER);
         labelConstraints.anchor = GridBagConstraints.CENTER;
         labelConstraints.insets = new Insets(3, 0, 0, 0);
-        labelConstraints.gridy = 13;
+        labelConstraints.gridy += 2;
         labelConstraints.gridwidth = 9;
         mainPanel.add(linksLabel, labelConstraints);
 
         editConstraints.gridx = 0;
-        editConstraints.gridy = 14;
+        editConstraints.gridy += 3;
         editConstraints.gridwidth = 9;
         JScrollPane scrollPane1 = new JScrollPane(links);
         scrollPane1.setPreferredSize(new Dimension(200, 77));
         mainPanel.add(scrollPane1, editConstraints);
 
         JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only)", JLabel.CENTER);
-        labelConstraints.gridy = 15;
+        labelConstraints.gridy += 2;
         mainPanel.add(extraLabelsLabel, labelConstraints);
 
-        editConstraints.gridy = 16;
+        editConstraints.gridy += 2;
         JScrollPane scrollPane2 = new JScrollPane(extraLabels);
         scrollPane2.setPreferredSize(new Dimension(200, 172));
         mainPanel.add(scrollPane2, editConstraints);
