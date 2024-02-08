@@ -44,7 +44,6 @@ public class AllureTestController extends GenericController {
     public static final String ATC_FEATURE = "AllureTestController.feature";
     public static final String ATC_TAGS = "AllureTestController.tags";
     public static final String ATC_PARAMETERS = "AllureTestController.parameters";
-    public static final String ATC_CONTENT_TYPE = "AllureTestController.contentType";
     public static final String ATC_OWNER = "AllureTestController.owner";
     public static final String ATC_LINKS = "AllureTestController.links";
     public static final String ATC_EXTRA_LABELS = "AllureTestController.extraLabels";
@@ -545,17 +544,6 @@ public class AllureTestController extends GenericController {
             result.setLength(result.length() - 1); // comma delete
         }
         return result.toString();
-    }
-
-    //
-    // Content type
-    //
-    public void setContentTypeField(String co) {
-        setProperty(ATC_CONTENT_TYPE, co);
-    }
-
-    public String getContentTypeField() {
-        return getPropertyAsString(ATC_CONTENT_TYPE, "").replace("\"", "\\\"");
     }
 
     //

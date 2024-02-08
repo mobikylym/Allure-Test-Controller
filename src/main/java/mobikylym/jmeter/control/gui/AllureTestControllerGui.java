@@ -8,7 +8,13 @@ import org.apache.jmeter.control.gui.AbstractControllerGui;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * An Allure Test Controller component.
@@ -17,6 +23,8 @@ import java.io.File;
 public class AllureTestControllerGui extends AbstractControllerGui {
 
     private static final long serialVersionUID = 2001L;
+
+    private static final String helperLink = "https://github.com/mobikylym/Allure-Test-Controller";
 
     private JTextField pathToResults = new JTextField("Choose result folder"); //Path to results
     private JCheckBox folderOverwrite = new JCheckBox("Overwrite folder  ", false); //Overwrite folder
@@ -33,7 +41,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JTextField feature = new JTextField(); //Feature
     private JTextField tags = new JTextField(); //Tags
     private JTextField parameters = new JTextField(); //Parameters
-    private JTextField contentType = new JTextField("text/plain"); //Content type
     private JTextField owner = new JTextField(); //Owner
     private JTextArea links = new JTextArea(); //Links
     private JTextArea extraLabels = new JTextArea(); //Extra Labels
@@ -78,7 +85,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         feature.setText("");
         tags.setText("");
         parameters.setText("");
-        contentType.setText("text/plain");
         owner.setText("");
         links.setText("");
         extraLabels.setText("");
@@ -104,7 +110,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_FEATURE, feature.getText());
             obj.setProperty(AllureTestController.ATC_TAGS, tags.getText());
             obj.setProperty(AllureTestController.ATC_PARAMETERS, parameters.getText());
-            obj.setProperty(AllureTestController.ATC_CONTENT_TYPE, contentType.getText());
             obj.setProperty(AllureTestController.ATC_OWNER, owner.getText());
             obj.setProperty(AllureTestController.ATC_LINKS, links.getText());
             obj.setProperty(AllureTestController.ATC_EXTRA_LABELS, extraLabels.getText());
@@ -129,7 +134,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         feature.setText(element.getPropertyAsString(AllureTestController.ATC_FEATURE));
         tags.setText(element.getPropertyAsString(AllureTestController.ATC_TAGS));
         parameters.setText(element.getPropertyAsString(AllureTestController.ATC_PARAMETERS));
-        contentType.setText(element.getPropertyAsString(AllureTestController.ATC_CONTENT_TYPE));
         owner.setText(element.getPropertyAsString(AllureTestController.ATC_OWNER));
         links.setText(element.getPropertyAsString(AllureTestController.ATC_LINKS));
         extraLabels.setText(element.getPropertyAsString(AllureTestController.ATC_EXTRA_LABELS));
@@ -143,7 +147,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         setLayout(new BorderLayout(0, 5));
         setBorder(makeBorder());
     
-        add(makeTitlePanel(), BorderLayout.NORTH);
+        add(addHelpLinkToPanel(makeTitlePanel(), helperLink), BorderLayout.NORTH);
         JPanel mainPanel = new JPanel(new GridBagLayout());
 
         GridBagConstraints separatorConstraints = new GridBagConstraints();
@@ -299,59 +303,37 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         editConstraints.gridy = 10;
         mainPanel.add(parameters, editConstraints);
 
-        JLabel contentTypeLabel = new JLabel("Content type: ", JLabel.RIGHT);
-        labelConstraints.gridy = 11;
-        mainPanel.add(contentTypeLabel, labelConstraints);
-
-        editConstraints.gridx = 1;
-        editConstraints.gridy = 11;
-        mainPanel.add(contentType, editConstraints);
-
-        withoutContent.addItemListener(evt -> {
-            if (evt.getStateChange() == ItemEvent.SELECTED) {
-
-                contentType.setEnabled(false);
-                contentType.setText("No content");
-
-            } else {
-
-                contentType.setEnabled(true);
-                contentType.setText("text/plain");
-
-            }
-        });
-
         JLabel ownerLabel = new JLabel("Owner: ", JLabel.RIGHT);
-        labelConstraints.gridy = 12;
+        labelConstraints.gridy = 11;
         mainPanel.add(ownerLabel, labelConstraints);
 
         editConstraints.gridx = 1;
-        editConstraints.gridy = 12;
+        editConstraints.gridy = 11;
         mainPanel.add(owner, editConstraints);
 
         separatorConstraints.insets = new Insets(3, 0, 0, 0);
-        separatorConstraints.gridy = 13;
+        separatorConstraints.gridy = 12;
         mainPanel.add(new JSeparator(), separatorConstraints);
 
         JLabel linksLabel = new JLabel("Links (format: name-comma-URL)", JLabel.CENTER);
         labelConstraints.anchor = GridBagConstraints.CENTER;
         labelConstraints.insets = new Insets(3, 0, 0, 0);
-        labelConstraints.gridy = 14;
+        labelConstraints.gridy = 13;
         labelConstraints.gridwidth = 9;
         mainPanel.add(linksLabel, labelConstraints);
 
         editConstraints.gridx = 0;
-        editConstraints.gridy = 15;
+        editConstraints.gridy = 14;
         editConstraints.gridwidth = 9;
         JScrollPane scrollPane1 = new JScrollPane(links);
         scrollPane1.setPreferredSize(new Dimension(200, 77));
         mainPanel.add(scrollPane1, editConstraints);
 
         JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only)", JLabel.CENTER);
-        labelConstraints.gridy = 16;
+        labelConstraints.gridy = 15;
         mainPanel.add(extraLabelsLabel, labelConstraints);
 
-        editConstraints.gridy = 17;
+        editConstraints.gridy = 16;
         JScrollPane scrollPane2 = new JScrollPane(extraLabels);
         scrollPane2.setPreferredSize(new Dimension(200, 172));
         mainPanel.add(scrollPane2, editConstraints);
@@ -360,5 +342,24 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         container.add(mainPanel, BorderLayout.NORTH);
 
         add(container, BorderLayout.CENTER);
+    }
+
+    private static Component addHelpLinkToPanel(Container panel, String helpPage) {
+        JLabel linkLabel = new JLabel("<html><a href=''>How to use this plugin?</a></html>");
+        linkLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        linkLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                try {
+                    Desktop.getDesktop().browse(new URI(helpPage));
+                } catch (IOException | URISyntaxException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+        panel.add(linkLabel);
+
+        return panel;
     }
 }
