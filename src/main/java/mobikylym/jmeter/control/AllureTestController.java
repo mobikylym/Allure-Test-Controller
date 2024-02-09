@@ -3,6 +3,7 @@ package mobikylym.jmeter.control;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.control.GenericController;
 import org.apache.jmeter.control.NextIsNullException;
 import org.apache.jmeter.samplers.SampleResult;
@@ -12,6 +13,7 @@ import org.apache.jmeter.assertions.AssertionResult;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.io.FileUtils;
 
 import java.util.ArrayList;
@@ -56,6 +58,9 @@ public class AllureTestController extends GenericController {
     private String testFailureMessage = "";
     private Map<Integer, Boolean> processedSamplers = new HashMap<>();
 
+    final String PASSED = "passed";
+    final String FAILED = "failed";
+
     /**
      * Creates an Allure Test Controller
      */
@@ -68,10 +73,7 @@ public class AllureTestController extends GenericController {
         String filePrefix = UUID.randomUUID().toString();
         JMeterContext ctx = JMeterContextService.getContext();
         Sampler sampler = ctx.getCurrentSampler();
-        SampleResult result = ctx.getPreviousResult();
-
-        final String PASSED = "passed";
-        final String FAILED = "failed"; 
+        SampleResult result = ctx.getPreviousResult(); 
 
         if (isFirst()) {
             if (!pathCheck()) {
@@ -80,11 +82,40 @@ public class AllureTestController extends GenericController {
             }
 
             if (!isSingleStepTest()) {
+                File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replace("\"", "\\\"") + " " + getTestNameField());
+                if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
+                    try {
+                        String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+                        if (content.equals("true")) {
+                            return null;
+                        }
+                    } catch (IOException e) {
+                        log.error("Ошибка при чтении файла: " + e.getMessage());
+                    }
+                }
                 startFileMaking(testId, String.valueOf(System.currentTimeMillis()), getTestNameField(), getDescriptionField(), ctx.getThread().getThreadName().replace("\"", "\\\""));
+            }
+
+            if (this.getSubControllers().size() > 0 && this.getSubControllers().get(0) instanceof GenericController && result != null) {
+                processedSamplers.put(result.hashCode(), true);
             }
         }
 
         if (sampler != null && !isFirst()) {
+            if (isSingleStepTest()) {
+                File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replace("\"", "\\\"") + " " + sampler.getName().replace("\"", "\\\""));
+                if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
+                    try {
+                        String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+                        if (content.equals("true")) {
+                            return super.next();
+                        }
+                    } catch (IOException e) {
+                        log.error("Ошибка при чтении файла: " + e.getMessage());
+                    }
+                }
+            }
+
             int samplerHash = result.hashCode();
             if (!processedSamplers.containsKey(samplerHash)) {
                 if (sampler instanceof HTTPSamplerProxy || !isWithoutNonHTTP() || (!result.isSuccessful() && isCriticalTest())) {
@@ -188,6 +219,8 @@ public class AllureTestController extends GenericController {
 
         try {
             writeToFile(getPathToResults(), uuid + "-result.json", testFile);
+            writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName().replace("\"", "\\\"") + " " +
+            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replace("\"", "\\\"") : getTestNameField()), (status.equals(PASSED)) ? "true" : "false");
         } catch (IOException ex) {
             log.error("Failed to write result file.", ex);
         }
@@ -324,6 +357,12 @@ public class AllureTestController extends GenericController {
             }
             return true;
         }
+    }
+
+    public File getLastTryFolder() {
+        File folder = new File(getPropertyAsString(ATC_PATH_TO_RESULTS), "last-try-results");
+
+        return folder;
     }
 
     //
