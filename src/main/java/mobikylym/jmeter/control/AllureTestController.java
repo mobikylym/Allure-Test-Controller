@@ -183,7 +183,7 @@ public class AllureTestController extends GenericController {
         ",\"uuid\":\"" + uuid + 
         "\",\"historyId\":\"" + uuid +
         "\",\"fullName\":\"" + threadName + "  " + testName +
-        "\",\"parameters\":[" + testParametersConstructor() +
+        "\",\"parameters\":[" + ParametersConstructor(getParametersField()) +
         "],\"links\":[" + linkConstructor() +
         "],\"labels\":[" + getEpicField() + getStoryField() + getFeatureField() +
         getSeverity() + getOwnerField() + tagsConstructor() + extraLabelsConstructor() +
@@ -195,7 +195,8 @@ public class AllureTestController extends GenericController {
         String stepStatus = (result.isSuccessful()) ? "passed" : "failed";
         testFile += "{\"name\":\"" + result.getSampleLabel().replace("\"", "\\\"") +
         "\",\"status\":\"" + stepStatus +
-        "\",\"stage\":\"finished\",\"steps\":[" + getAssertionResults(result) +
+        "\",\"stage\":\"finished\",\"parameters\":[" + getStepParameters(result) +
+        "],\"steps\":[" + getAssertionResults(result) +
         "],\"statusDetails\":{\"message\":\"" + failureMessage +
         "\"},\"start\":" + result.getStartTime() +
         ",\"stop\":" + result.getEndTime() +
@@ -309,6 +310,9 @@ public class AllureTestController extends GenericController {
 
         for (AssertionResult assertionResult : assertionResults) {
             String name = assertionResult.getName().replace("\"", "\\\"");
+            if (name.startsWith("parameters:")) {
+                continue;
+            }
             String status = (assertionResult.isFailure() || assertionResult.isError()) ? "failed" : "passed";
             String message = (status.equals("passed")) ? "" : assertionResult.getFailureMessage().replace("\"", "\\\"");
 
@@ -317,6 +321,22 @@ public class AllureTestController extends GenericController {
         }
 
         return String.join(",", results);
+    }
+
+    private String getStepParameters(SampleResult result) {
+        AssertionResult[] assertionResults = result.getAssertionResults();
+    
+        for (AssertionResult assertionResult : assertionResults) {
+            String name = assertionResult.getName().replace("\"", "\\\"");
+            if (name.startsWith("parameters:")) {
+                String params = name.trim().replaceAll("parameters:", "");
+                if (!params.matches("\\s*")) {
+                    return ParametersConstructor(params);
+                }
+            }
+        }
+    
+        return "";
     }
 
     //
@@ -579,9 +599,8 @@ public class AllureTestController extends GenericController {
         return getPropertyAsString(ATC_PARAMETERS, "");
     }
 
-    private String testParametersConstructor() {
-        String tags = getParametersField();
-        String[] values = tags.split(",");
+    private String ParametersConstructor(String params) {
+        String[] values = params.split(",");
         StringBuilder result = new StringBuilder();
 
         Pattern pattern = Pattern.compile("\\s*");
