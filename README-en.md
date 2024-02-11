@@ -51,3 +51,27 @@ For each step, the plugin analyzes all nested assertions and outputs them in the
 2. If you use any loop controller inside Allure Test Controller (for example, While Controller or ForEach Controller), each iteration for samplers inside the loop will create new test case steps in the report. Exception: if you use [Retry Post-Processor](https://github.com/tilln/jmeter-retrier), the step will be created only for the last attempt to execute the sampler.
 3. Try not to use Allure Test Controller inside the same controller. If the "Stop test on error" checkbox is set in the child controller and not in the parent, then in case of an error inside the child controller, the results of the parent will not appear in the report because the thread will be stopped before the results of the parent controller are written to the file.
 
+
+
+# Selective Retest Mechanism
+
+In addition to saving the report for Allure, the plugin also saves the results of each individual test in the “last-try-results” folder, which is automatically created in the same location as the “allure-results” folder. You can configure the scenario in such a way that it skips all tests that were successful last time when launched. 
+The configuration is done through the JMeter property “allure.retry.fallen”. If “allure.retry.fallen” = “true”, the selective launch mechanism will work and only tests that ended with errors last time will be run again. 
+This property can be set in several ways:
+- **Write in the .properties file**: It is recommended to do this only if you always want to enable this option (“true”) by default.
+  
+- **Specify in the scenario using a sampler that supports code input**: For instance, setting the property in BeanShell Sampler would look like this:
+```Java
+import org.apache.jmeter.util.JMeterUtils;
+JMeterUtils.setProperty("allure.retry.fallen", "true");
+```
+
+- **Specify when launching through the terminal using the -J parameter**:
+```
+jmeter -Jallure.retry.fallen=true -n -t [your_jmx_file]
+```
+
+
+## How the selective retest mechanism affects the scenario and Allure report:
+1. If “Single step tests” is not set, then if at least one step of the test ended with an error last time, the entire test will be performed next time and will be included in the report. If the test was successful last time, then this time the samplers in it will not be executed, and this test will not be included in the report.
+2. When “Single step tests” is set: if at least one of the samplers inside the controller ended with an error last time, all samplers inside it will be executed in the scenario. The report will only include tests that ended with an error last time, and tests that ended with an error this time. For example, inside the controller there are 5 samplers. If only the second one ended with an error last time, and after the current launch the fourth and fifth gave an error, then 3 tests will be included in the report: 2, 4 and 5. If all samplers inside the controller were successful last time - execution will be skipped and these tests will not be included in the report. ATTENTION! For recording the results of the previous launch of a one-step test, a unique combination of “Thread Name” + “Sampler Name” is used. Do not use the same sampler names inside the controller if “Single step tests” is set, otherwise the results of some tests will erase the results of others.
