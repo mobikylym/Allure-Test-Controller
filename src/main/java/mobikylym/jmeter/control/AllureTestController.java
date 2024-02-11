@@ -81,7 +81,8 @@ public class AllureTestController extends GenericController {
                 return null;
             }
 
-            File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replace("\"", "\\\"") + " " + (isSingleStepTest() ? this.getName().replace("\"", "\\\"") : getTestNameField()));
+            File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
+            " " + (isSingleStepTest() ? this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()));
             if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
                 try {
                     String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
@@ -104,11 +105,12 @@ public class AllureTestController extends GenericController {
 
         if (sampler != null && !isFirst()) {
             if (isSingleStepTest()) {
-                File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replace("\"", "\\\"") + " " + sampler.getName().replace("\"", "\\\""));
+                File file = new File(getLastTryFolder(), ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
+                " " + sampler.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim());
                 if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
                     try {
                         String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-                        if (content.equals("true")) {
+                        if (content.equals("true") && result.isSuccessful()) {
                             return super.next();
                         }
                     } catch (IOException e) {
@@ -142,8 +144,8 @@ public class AllureTestController extends GenericController {
                             stopFileMaking(testId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
                         } else {
                             try {
-                                writeToFile(getLastTryFolder(), ctx.getThread().getThreadName().replace("\"", "\\\"") + 
-                                " " + this.getName().replace("\"", "\\\""), "false");
+                                writeToFile(getLastTryFolder(), ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
+                                " " + this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), "false");
                             } catch (IOException ex) {
                                 log.error("Failed to write last result file.", ex);
                             }
@@ -165,8 +167,8 @@ public class AllureTestController extends GenericController {
             stopFileMaking(testId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
         } else {
             try {
-                writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName().replace("\"", "\\\"") + 
-                " " + this.getName().replace("\"", "\\\""), testStatus.equals(PASSED) ? "true" : "false");
+                writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
+                " " + this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), testStatus.equals(PASSED) ? "true" : "false");
             } catch (IOException ex) {
                 log.error("Failed to write last result file.", ex);
             }
@@ -234,8 +236,8 @@ public class AllureTestController extends GenericController {
 
         try {
             writeToFile(getPathToResults(), uuid + "-result.json", testFile);
-            writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName().replace("\"", "\\\"") + " " +
-            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replace("\"", "\\\"") : getTestNameField()), (status.equals(PASSED)) ? "true" : "false");
+            writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + " " +
+            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()), (status.equals(PASSED)) ? "true" : "false");
         } catch (IOException ex) {
             log.error("Failed to write result file.", ex);
         }
