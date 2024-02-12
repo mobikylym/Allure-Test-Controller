@@ -33,7 +33,10 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
 - **Epic + Story + Feature**: Names of the corresponding entities. They serve to divide test cases in the report by functionality.
   
 - **Tags (comma-delimited)**: Specifies tags for the test case.
+  
 - **Params (comma-delimited)**: Specifies the variables that need to be reflected in the test case. It is filled with variable names, without "${}". ATTENTION! If the "Single step tests" checkbox is set, the variables will take the values they have after the current sampler is executed. If the "Single step tests" checkbox is not set, the variables will take the values they have before the controller starts working.
+
+- **Step params**: This field is not present in the controller UI because each individual step can have its own unique parameters. How to correctly add parameters to a specific step? Add a child element of type “Response Assertion” to the sampler you need. Leave all fields in it empty, except for “Name”. This field should start with "parameters: " (necessarily in lowercase), and after the colon, list the names of all variables, the values of which you want to display for this step in the report, without “${}”. ATTENTION! All parameters must be written in the same Response Assertion. If several elements in the same step start with "parameters: ", only the parameters from the element that is higher in the tree of elements will get into the report, the rest will be ignored. It is important to remember that the test parameters are determined by the value of the variables immediately before entering the controller, and the step parameters - immediately after the completion of this step. That is, if any extractor is used in your step that creates a new variable, you can immediately display it in the parameters of this step.
 
 - **Owner**: Specifies the creator or person responsible for this test case.
   
@@ -47,10 +50,9 @@ For each step, the plugin analyzes all nested assertions and outputs them in the
 
 
 ## Limitations
-1. At the moment, the plugin does not support variables inside the test case step. Only case variables are available. Support for test case step parameters will appear in future versions.
-2. For security purposes, when writing files with step data, the plugin automatically substitutes the “Authorization”, “X-Api-Token”, and “X-Api-Key” headers in the request with the value “XXX (Has been replaced for safety)”. This substitution is not configurable and always happens.
-3. If you use any loop controller inside Allure Test Controller (for example, While Controller or ForEach Controller), each iteration for samplers inside the loop will create new test case steps in the report. Exception: if you use [Retry Post-Processor](https://github.com/tilln/jmeter-retrier), the step will be created only for the last attempt to execute the sampler.
-4. Try not to use Allure Test Controller inside the same controller. If the "Stop test on error" checkbox is set in the child controller and not in the parent, then in case of an error inside the child controller, the results of the parent will not appear in the report because the thread will be stopped before the results of the parent controller are written to the file.
+1. For security purposes, when writing files with step data, the plugin automatically substitutes the “Authorization”, “X-Api-Token”, and “X-Api-Key” headers in the request with the value “XXX (Has been replaced for safety)”. This substitution is not configurable and always happens.
+2. If you use any loop controller inside Allure Test Controller (for example, While Controller or ForEach Controller), each iteration for samplers inside the loop will create new test case steps in the report. Exception: if you use [Retry Post-Processor](https://github.com/tilln/jmeter-retrier), the step will be created only for the last attempt to execute the sampler.
+3. Try not to use Allure Test Controller inside the same controller. If the "Stop test on error" checkbox is set in the child controller and not in the parent, then in case of an error inside the child controller, the results of the parent will not appear in the report because the thread will be stopped before the results of the parent controller are written to the file.
 
 
 
