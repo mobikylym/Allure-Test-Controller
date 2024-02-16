@@ -610,7 +610,7 @@ public class AllureTestController extends GenericController {
             value = value.trim();
             if (!pattern.matcher(value).matches()) {
                 String variableValue = context.getVariables().get(value);
-                result.append("{ \"name\":\"").append(value).append("\",\"value\":\"").append(variableValue).append("\"},");
+                result.append("{ \"name\":\"").append(value).append("\",\"value\":\"").append(variableValue.replace("\"", "\\\"")).append("\"},");
             }
         }
 

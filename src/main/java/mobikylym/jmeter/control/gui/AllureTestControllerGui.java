@@ -262,19 +262,19 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         editConstraints.gridy ++;
         mainPanel.add(epic, editConstraints);
 
-        JLabel storyLabel = new JLabel("Story: ", JLabel.RIGHT);
-        labelConstraints.gridy ++;
-        mainPanel.add(storyLabel, labelConstraints);
-
-        editConstraints.gridy ++;
-        mainPanel.add(story, editConstraints);
-
         JLabel featureLabel = new JLabel("Feature: ", JLabel.RIGHT);
         labelConstraints.gridy ++;
         mainPanel.add(featureLabel, labelConstraints);
 
         editConstraints.gridy ++;
         mainPanel.add(feature, editConstraints);
+
+        JLabel storyLabel = new JLabel("Story: ", JLabel.RIGHT);
+        labelConstraints.gridy ++;
+        mainPanel.add(storyLabel, labelConstraints);
+
+        editConstraints.gridy ++;
+        mainPanel.add(story, editConstraints);
 
         JLabel tagsLabel = new JLabel("Tags (comma-delimited): ", JLabel.RIGHT);
         labelConstraints.gridy ++;
