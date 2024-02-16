@@ -74,6 +74,7 @@ public class AllureTestController extends GenericController {
         JMeterContext ctx = JMeterContextService.getContext();
         Sampler sampler = ctx.getCurrentSampler();
         SampleResult result = ctx.getPreviousResult(); 
+        int samplerHash = result.hashCode();
 
         if (isFirst()) {
             if (!pathCheck()) {
@@ -111,6 +112,7 @@ public class AllureTestController extends GenericController {
                     try {
                         String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
                         if (content.equals("true") && result.isSuccessful()) {
+                            processedSamplers.put(samplerHash, true);
                             return super.next();
                         }
                     } catch (IOException e) {
@@ -118,8 +120,7 @@ public class AllureTestController extends GenericController {
                     }
                 }
             }
-
-            int samplerHash = result.hashCode();
+            
             if (!processedSamplers.containsKey(samplerHash)) {
                 if (sampler instanceof HTTPSamplerProxy || !isWithoutNonHTTP() || (!result.isSuccessful() && isCriticalTest())) {
                     String stepFailureMessage = (result.getFirstAssertionFailureMessage() == null) ? "" : result.getFirstAssertionFailureMessage().replace("\"", "\\\"");
@@ -602,18 +603,23 @@ public class AllureTestController extends GenericController {
     private String ParametersConstructor(String params) {
         String[] values = params.split(",");
         StringBuilder result = new StringBuilder();
-
+    
         Pattern pattern = Pattern.compile("\\s*");
         JMeterContext context = JMeterContextService.getContext();
-
+    
         for (String value : values) {
             value = value.trim();
             if (!pattern.matcher(value).matches()) {
                 String variableValue = context.getVariables().get(value);
-                result.append("{ \"name\":\"").append(value).append("\",\"value\":\"").append(variableValue.replace("\"", "\\\"")).append("\"},");
+                if (variableValue != null) {
+                    variableValue = variableValue.replace("\"", "\\\"");
+                } else {
+                    variableValue = "null";
+                }
+                result.append("{ \"name\":\"").append(value).append("\",\"value\":\"").append(variableValue).append("\"},");
             }
         }
-
+    
         if (result.length() > 0) {
             result.setLength(result.length() - 1); // comma delete
         }
