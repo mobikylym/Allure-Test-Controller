@@ -74,7 +74,6 @@ public class AllureTestController extends GenericController {
         JMeterContext ctx = JMeterContextService.getContext();
         Sampler sampler = ctx.getCurrentSampler();
         SampleResult result = ctx.getPreviousResult(); 
-        int samplerHash = result.hashCode();
 
         if (isFirst()) {
             if (!pathCheck()) {
@@ -105,6 +104,7 @@ public class AllureTestController extends GenericController {
         }
 
         if (sampler != null && !isFirst()) {
+            int samplerHash = result.hashCode();
             if (isSingleStepTest()) {
                 File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
                 " " + sampler.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim());
