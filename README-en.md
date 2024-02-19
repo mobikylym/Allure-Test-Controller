@@ -30,7 +30,7 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
   
 - **Severity**: Indicates the severity of the test case. By default in Allure, the options are: "trivial", "minor", "normal", "critical" and "blocker". Free input is available. If you leave the field empty, "normal" will be indicated.
   
-- **Epic + Story + Feature**: Names of the corresponding entities. They serve to divide test cases in the report by functionality.
+- **Epic + Feature + Story**: Names of the corresponding entities. They serve to divide test cases in the report by functionality.
   
 - **Tags (comma-delimited)**: Specifies tags for the test case.
   
