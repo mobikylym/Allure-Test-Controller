@@ -2,6 +2,7 @@
 
 # Allure Test Controller
 
+![Allure Test Controller](./img/ATC_preview.jpg)
 
 ## Overview
 This Apache JMeter plugin represents a controller that contains one or more test cases, the results of which will be presented in a format compatible with Allure.
