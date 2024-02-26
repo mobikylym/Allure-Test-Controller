@@ -27,7 +27,7 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
   
 - **Debug mode**: If set, nothing will change in the report, but the .json file with test results will acquire a readable look. The function is needed only for manual checking of results.
   
-- **Test name + Description**: The name of the test case and its description. If the "Single step tests" checkbox is set, these fields become unavailable for filling, because then each sampler inside the controller will have its name and description.
+- **Test name + Description**: The name of the test case and its description. If the "Single step tests" checkbox is set, these fields become unavailable for filling, because then each sampler inside the controller will have its name and description. ATTENTION! The “Test name” field can also contain the id of the related case when using Allure TMS if necessary. To indicate the connection, you need to specify the numeric id of the case from TMS before the test name, then a dash, and then the case name (for example, “1425 - Authorization with a personal account”). This functionality also works when using the “Single step tests” checkbox.
   
 - **Severity**: Indicates the severity of the test case. By default in Allure, the options are: "trivial", "minor", "normal", "critical" and "blocker". Free input is available. If you leave the field empty, "normal" will be indicated.
   
@@ -41,9 +41,14 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
 
 - **Owner**: Specifies the creator or person responsible for this test case.
   
-- **Links (format: name-comma-URL)**: Specifies links to the test case. Each link should start on a new line. If the value in the line does not match the format from the field name, the line will be skipped and will not appear in the report.
-  
-- **Extra labels (Allure TMS only)**: Specifies additional attributes of the test case. The filling format is the same as for "Links". ATTENTION! When generating a report using the Allure console utility, support for additional fields is not implemented. The values specified here must be supported by your Allure TMS to be visible in the report.
+- **Links**: Indicating links to the test case. Each link should start on a new line and follow the format, otherwise it will be ignored. There are 2 ways to specify a link:
+
+    1. Specify in the format “Name -> comma -> URL”. Suitable for all cases;
+    2. Specify in the format “URL”. In this case, the part of the link after the last slash becomes the name of the link. Suitable only for cases when the endpoint should be the name. For example, when specifying in the line “https://example.com/tms/TMS-112”, the link name will automatically become “TMS-112”.
+
+- **TMS Links**: This functionality has been added exclusively for convenience when using an external TMS in addition to Allure. To add this link, you need to specify the JMeter property “allure.tmsLink.prefix” in the .properties file or define it in the scenario using a sampler that supports code input (for example, BeanShell Sampler). After that, in the “Links” field, you can simply specify the name of the entity so that the plugin automatically adds a link to it from the property as a prefix. For example, with “allure.tmsLink.prefix” = “https://example.com/tms/” and specifying in the line “TMS-112”, a link with the name “TMS-112” and URL = “https://example.com/tms/TMS-112” will be added to the test case. ATTENTION! For more flexible settings, you can specify not the full path in the property, but only its immutable part, and write the rest in the line. For example, with “allure.tmsLink.prefix” = “https://example.com/” and specifying in the line “some/path/to/use/TMS-112”, a link with the name “TMS-112” and URL = “https://example.com/some/path/to/use/TMS-112” will be added to the test case.
+
+- **Extra labels (Allure TMS only)**: Indicating additional attributes of the test case in the format “Key -> comma -> value”. Each label should start on a new line and follow the format, otherwise it will be ignored. ATTENTION! When generating a report using the Allure console utility, support for additional fields is not implemented. The values specified here must be supported and configured in your Allure TMS to be visible in the report.
 
   
 ## Assertions

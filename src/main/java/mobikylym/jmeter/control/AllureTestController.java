@@ -52,7 +52,7 @@ public class AllureTestController extends GenericController {
 
     private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
 
-    private String testId = UUID.randomUUID().toString();
+    private String testFileId = UUID.randomUUID().toString();
     private String testFile = "";
     private String testStatus = "passed";
     private String testFailureMessage = "";
@@ -95,7 +95,7 @@ public class AllureTestController extends GenericController {
             }
 
             if (!isSingleStepTest()) {
-                startFileMaking(testId, String.valueOf(System.currentTimeMillis()), getTestNameField(), getDescriptionField(), ctx.getThread().getThreadName().replace("\"", "\\\""));
+                startFileMaking(getTestId(getPropertyAsString(ATC_TEST_NAME)), testFileId, String.valueOf(System.currentTimeMillis()), getTestNameField(getPropertyAsString(ATC_TEST_NAME)), getDescriptionField(), ctx.getThread().getThreadName().replace("\"", "\\\""));
             }
 
             if (this.getSubControllers().size() > 0 && this.getSubControllers().get(0) instanceof GenericController && result != null) {
@@ -134,7 +134,7 @@ public class AllureTestController extends GenericController {
                     if (!isSingleStepTest()) {
                         continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
                     } else {
-                        startFileMaking(filePrefix, String.valueOf(result.getStartTime()), result.getSampleLabel().replace("\"", "\\\""), sampler.getComment().replace("\"", "\\\""), ctx.getThread().getThreadName().replace("\"", "\\\""));
+                        startFileMaking(getTestId(result.getSampleLabel()), filePrefix, String.valueOf(result.getStartTime()), getTestNameField(result.getSampleLabel()), sampler.getComment().replace("\"", "\\\""), ctx.getThread().getThreadName().replace("\"", "\\\""));
                         continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
                         stopFileMaking(filePrefix, String.valueOf(result.getEndTime()), (result.isSuccessful()) ? PASSED : FAILED, (result.isSuccessful()) ? "" : 
                         "Error on step \\\"" + result.getSampleLabel().replace("\"", "\\\"") + "\\\".\\nAssertion failure message: " + stepFailureMessage);
@@ -142,7 +142,7 @@ public class AllureTestController extends GenericController {
 
                     if (isCriticalTest() && testStatus.equals(FAILED)){
                         if (!isSingleStepTest()) {
-                            stopFileMaking(testId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
+                            stopFileMaking(testFileId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
                         } else {
                             try {
                                 writeToFile(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
@@ -165,7 +165,7 @@ public class AllureTestController extends GenericController {
     @Override
     protected Sampler nextIsNull() throws NextIsNullException {
         if (!isSingleStepTest()) {
-            stopFileMaking(testId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
+            stopFileMaking(testFileId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
         } else {
             try {
                 writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
@@ -177,7 +177,7 @@ public class AllureTestController extends GenericController {
         return super.nextIsNull();
     }
 
-    private void startFileMaking(String uuid, String startTime, String testName, String description, String threadName) {
+    private void startFileMaking(String testId, String uuid, String startTime, String testName, String description, String threadName) {
         testFile = "{\"name\":\"" + testName + 
         "\",\"description\":\"" + description + 
         "\",\"stage\":\"finished\",\"start\":" + startTime +
@@ -186,7 +186,7 @@ public class AllureTestController extends GenericController {
         "\",\"fullName\":\"" + threadName + "  " + testName +
         "\",\"parameters\":[" + ParametersConstructor(getParametersField()) +
         "],\"links\":[" + linkConstructor() +
-        "],\"labels\":[" + getEpicField() + getStoryField() + getFeatureField() +
+        "],\"labels\":[" + testId + getEpicField() + getStoryField() + getFeatureField() +
         getSeverity() + getOwnerField() + tagsConstructor() + extraLabelsConstructor() +
         "{\"name\":\"host\",\"value\":\"" + threadName +
         "\"}],\"steps\":[";
@@ -194,7 +194,7 @@ public class AllureTestController extends GenericController {
 
     private void continueFileMaking(String uuid, String failureMessage, Sampler sampler, SampleResult result) {
         String stepStatus = (result.isSuccessful()) ? "passed" : "failed";
-        testFile += "{\"name\":\"" + result.getSampleLabel().replace("\"", "\\\"") +
+        testFile += "{\"name\":\"" + getTestNameField(result.getSampleLabel()) +
         "\",\"status\":\"" + stepStatus +
         "\",\"stage\":\"finished\",\"parameters\":[" + getStepParameters(result) +
         "],\"steps\":[" + getAssertionResults(result) +
@@ -469,7 +469,19 @@ public class AllureTestController extends GenericController {
     }
 
     //
-    // Test
+    // Test id
+    //
+
+    public String getTestId(String testNameString) {
+        if (testNameString.matches("\\d+\\s*-.+")){
+            return "{\"name\":\"as_id\",\"value\":\"" + testNameString.split("-")[0].trim() + "\"},";
+        } else {
+            return "";
+        }
+    }
+
+    //
+    // Test name
     //
     public void setTestNameField(String te) {
         if(!isSingleStepTest()) {
@@ -479,8 +491,8 @@ public class AllureTestController extends GenericController {
         }
     }
 
-    public String getTestNameField() {
-        return getPropertyAsString(ATC_TEST_NAME, "").replace("\"", "\\\"");
+    public String getTestNameField(String testNameString) {
+        return testNameString.replaceFirst("^\\d+\\s*-\\s*", "").replace("\"", "\\\"");
     }
 
     //
@@ -612,7 +624,7 @@ public class AllureTestController extends GenericController {
             if (!pattern.matcher(value).matches()) {
                 String variableValue = context.getVariables().get(value);
                 if (variableValue != null) {
-                    variableValue = variableValue.replace("\"", "\\\"");
+                    variableValue = variableValue.replaceAll("\\\\*\"", "\\\\\"");
                 } else {
                     variableValue = "null";
                 }
@@ -656,17 +668,27 @@ public class AllureTestController extends GenericController {
         String links = getLinksField();
         String[] lines = links.split("\n");
         StringBuilder result = new StringBuilder();
-
-        Pattern pattern = Pattern.compile("[^,]+,[^,]+");
-
+    
+        Pattern pattern1 = Pattern.compile("[^,]+,[^,]+");
+        Pattern pattern2 = Pattern.compile("[^,]+");
+    
         for (String line : lines) {
-            Matcher matcher = pattern.matcher(line);
-            if (matcher.matches()) {
+            Matcher matcher1 = pattern1.matcher(line);
+            Matcher matcher2 = pattern2.matcher(line);
+            if (matcher1.matches()) {
                 String[] parts = line.split(",");
                 result.append("{ \"name\":\"").append(parts[0].trim().replace("\"", "\\\"")).append("\",\"url\":\"").append(parts[1].trim().replace("\"", "\\\"")).append("\"},");
+            } else if (matcher2.matches() && line.trim().matches("^https?://.*")) {
+                String value = line.trim().replace("\"", "\\\"");
+                String name = value.substring(value.lastIndexOf("/") + 1);
+                result.append("{ \"name\":\"").append(name).append("\",\"url\":\"").append(value).append("\"},");
+            } else if (matcher2.matches() && JMeterUtils.getPropDefault("allure.tmsLink.prefix", null) != null) {
+                String value = line.trim().replace("\"", "\\\"");
+                String name = value.contains("/") ? value.substring(value.lastIndexOf("/") + 1) : value;
+                result.append("{ \"type\":\"tms\",\"name\":\"").append(name).append("\",\"url\":\"").append(JMeterUtils.getProperty("allure.tmsLink.prefix") + value).append("\"},");
             }
         }
-
+    
         if (result.length() > 0) {
             result.setLength(result.length() - 1); // comma delete
         }

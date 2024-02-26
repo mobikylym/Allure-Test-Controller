@@ -301,7 +301,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         separatorConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(new JSeparator(), separatorConstraints);
 
-        JLabel linksLabel = new JLabel("Links (format: name-comma-URL)", JLabel.CENTER);
+        JLabel linksLabel = new JLabel("Links:", JLabel.CENTER);
         labelConstraints.anchor = GridBagConstraints.CENTER;
         labelConstraints.insets = new Insets(3, 0, 0, 0);
         labelConstraints.gridy = separatorConstraints.gridy + 1;
@@ -315,7 +315,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         scrollPane1.setPreferredSize(new Dimension(200, 77));
         mainPanel.add(scrollPane1, editConstraints);
 
-        JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only)", JLabel.CENTER);
+        JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only):", JLabel.CENTER);
         labelConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(extraLabelsLabel, labelConstraints);
 
