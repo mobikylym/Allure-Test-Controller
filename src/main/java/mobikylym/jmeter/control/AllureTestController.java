@@ -68,6 +68,11 @@ public class AllureTestController extends GenericController {
         super();
     }
 
+    /**
+     * This method from class GenericController describes the actions performed between samplers  
+     * within the controller. The first loop starts before the execution of all nested samplers,  
+     * and the last one - after the execution of the last one.
+     */
     @Override
     public Sampler next() {    
         String filePrefix = UUID.randomUUID().toString();
@@ -162,6 +167,10 @@ public class AllureTestController extends GenericController {
         return super.next();
     }
 
+    /**
+     * This method from class GenericController is used to perform additional actions 
+     * at the moment when all samplers from the controller have already been executed.  
+     */
     @Override
     protected Sampler nextIsNull() throws NextIsNullException {
         if (!isSingleStepTest()) {
@@ -267,6 +276,10 @@ public class AllureTestController extends GenericController {
         return responseData;
     }
 
+    /**
+     * The following two methods are needed for the correct display of content in JSON 
+     * format. Without them, everything will be in one line.  
+     */
     private String formatJson(String json) {
         int level = 0;
         boolean inQuotes = false;
@@ -305,6 +318,10 @@ public class AllureTestController extends GenericController {
         return new String(new char[times]).replace("\0", str);
     }
 
+    /**
+     * This method is needed to obtain the results of all assertions from each sampler.  
+     * The results are immediately converted into the necessary JSON format.  
+     */
     private String getAssertionResults(SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
         List<String> results = new ArrayList<>();
@@ -324,6 +341,11 @@ public class AllureTestController extends GenericController {
         return String.join(",", results);
     }
 
+    /**
+     * This method is needed to get the step parameters. The parameters are JMeter variables.
+     * In this case, the values of the variables that they have after the step execution are taken.
+     * Instructions for the correct output of step parameters are written in the repository.
+     */
     private String getStepParameters(SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
     
