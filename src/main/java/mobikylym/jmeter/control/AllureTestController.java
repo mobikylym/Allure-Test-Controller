@@ -496,7 +496,7 @@ public class AllureTestController extends GenericController {
 
     public String getTestId(String testNameString) {
         if (testNameString.matches("\\d+\\s*-.+")){
-            return "{\"name\":\"as_id\",\"value\":\"" + testNameString.split("-")[0].trim() + "\"},";
+            return "{\"name\":\"allure_id\",\"value\":\"" + testNameString.split("-")[0].trim() + "\"},";
         } else {
             return "";
         }
