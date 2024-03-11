@@ -43,6 +43,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JTextField parameters = new JTextField(); //Parameters
     private JTextField owner = new JTextField(); //Owner
     private JTextArea links = new JTextArea(); //Links
+    private JTextArea attach = new JTextArea(); //Attachments
     private JTextArea extraLabels = new JTextArea(); //Extra Labels
 
     @Override
@@ -87,6 +88,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         parameters.setText("");
         owner.setText("");
         links.setText("");
+        attach.setText("");
         extraLabels.setText("");
     }
 
@@ -112,6 +114,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_PARAMETERS, parameters.getText());
             obj.setProperty(AllureTestController.ATC_OWNER, owner.getText());
             obj.setProperty(AllureTestController.ATC_LINKS, links.getText());
+            obj.setProperty(AllureTestController.ATC_ATTACH, attach.getText());
             obj.setProperty(AllureTestController.ATC_EXTRA_LABELS, extraLabels.getText());
         }
     }
@@ -136,6 +139,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         parameters.setText(element.getPropertyAsString(AllureTestController.ATC_PARAMETERS));
         owner.setText(element.getPropertyAsString(AllureTestController.ATC_OWNER));
         links.setText(element.getPropertyAsString(AllureTestController.ATC_LINKS));
+        attach.setText(element.getPropertyAsString(AllureTestController.ATC_ATTACH));
         extraLabels.setText(element.getPropertyAsString(AllureTestController.ATC_EXTRA_LABELS));
     }
 
@@ -276,14 +280,14 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         editConstraints.gridy ++;
         mainPanel.add(story, editConstraints);
 
-        JLabel tagsLabel = new JLabel("Tags (comma-delimited): ", JLabel.RIGHT);
+        JLabel tagsLabel = new JLabel("Tags: ", JLabel.RIGHT);
         labelConstraints.gridy ++;
         mainPanel.add(tagsLabel, labelConstraints);
 
         editConstraints.gridy ++;
         mainPanel.add(tags, editConstraints);
 
-        JLabel parametersLabel = new JLabel("Params (comma-delimited): ", JLabel.RIGHT);
+        JLabel parametersLabel = new JLabel("Parameters: ", JLabel.RIGHT);
         labelConstraints.gridy ++;
         mainPanel.add(parametersLabel, labelConstraints);
 
@@ -312,17 +316,26 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         editConstraints.gridy = labelConstraints.gridy + 1;
         editConstraints.gridwidth = 9;
         JScrollPane scrollPane1 = new JScrollPane(links);
-        scrollPane1.setPreferredSize(new Dimension(200, 77));
+        scrollPane1.setPreferredSize(new Dimension(200, 62));
         mainPanel.add(scrollPane1, editConstraints);
 
-        JLabel extraLabelsLabel = new JLabel("Extra labels (Allure Test Management System only):", JLabel.CENTER);
+        JLabel attachLabel = new JLabel("Attachments (format: name-comma-file-comma-content type):", JLabel.CENTER);
+        labelConstraints.gridy = editConstraints.gridy + 1;
+        mainPanel.add(attachLabel, labelConstraints);
+
+        editConstraints.gridy = labelConstraints.gridy + 1;
+        JScrollPane scrollPane2 = new JScrollPane(attach);
+        scrollPane2.setPreferredSize(new Dimension(200, 62));
+        mainPanel.add(scrollPane2, editConstraints);
+
+        JLabel extraLabelsLabel = new JLabel("Extra labels (format: name-comma-value):", JLabel.CENTER);
         labelConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(extraLabelsLabel, labelConstraints);
 
         editConstraints.gridy = labelConstraints.gridy + 1;
-        JScrollPane scrollPane2 = new JScrollPane(extraLabels);
-        scrollPane2.setPreferredSize(new Dimension(200, 172));
-        mainPanel.add(scrollPane2, editConstraints);
+        JScrollPane scrollPane3 = new JScrollPane(extraLabels);
+        scrollPane3.setPreferredSize(new Dimension(200, 124));
+        mainPanel.add(scrollPane3, editConstraints);
 
         JPanel container = new JPanel(new BorderLayout());
         container.add(mainPanel, BorderLayout.NORTH);

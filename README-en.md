@@ -6,6 +6,8 @@
 - [Overview](#overview)
 - [Motivation](#motivation)
 - [Description of controller attributes](#description-of-controller-attributes-and-their-application)
+- [Description of step attributes](#description-of-additional-attributes-of-the-test-steps-and-their-application)
+- [Retry history support](#retry-history-support)
 - [Assertions](#assertions)
 - [Limitations](#limitations)
 - [Selective retest mechanism](#selective-retest-mechanism)
@@ -41,13 +43,11 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
   
 - **Severity**: Indicates the severity of the test case. By default in Allure, the options are: "trivial", "minor", "normal", "critical" and "blocker". Free input is available. If you leave the field empty, "normal" will be indicated.
   
-- **Epic + Feature + Story**: Names of the corresponding entities. They serve to divide test cases in the report by functionality.
+- **Epic + Feature + Story**: Names of the corresponding entities. They serve to divide test cases in the report by functionality.These fields support only one label at a time, but Allure TMS (for example, TestOps) can support multiple entity data. In this case, the rest or all of them can be listed in the "Extra labels" field.
   
-- **Tags (comma-delimited)**: Specifies tags for the test case.
+- **Tags**: Specifying tags for the test case. Each new tag is separated by a comma.
   
-- **Params (comma-delimited)**: Specifies the variables that need to be reflected in the test case. It is filled with variable names, without "${}". ATTENTION! If the "Single step tests" checkbox is set, the variables will take the values they have after the current sampler is executed. If the "Single step tests" checkbox is not set, the variables will take the values they have before the controller starts working.
-
-- **Step params**: This field is not present in the controller UI because each individual step can have its own unique parameters. How to correctly add parameters to a specific step? Add a child element of type “Response Assertion” to the sampler you need. Leave all fields in it empty, except for “Name”. This field should start with "parameters: " (necessarily in lowercase), and after the colon, list the names of all variables, the values of which you want to display for this step in the report, without “${}”. ATTENTION! All parameters must be written in the same Response Assertion. If several elements in the same step start with "parameters: ", only the parameters from the element that is higher in the tree of elements will get into the report, the rest will be ignored. It is important to remember that the test parameters are determined by the value of the variables immediately before entering the controller, and the step parameters - immediately after the completion of this step. That is, if any extractor is used in your step that creates a new variable, you can immediately display it in the parameters of this step.
+- **Parameters**: Specifying the variables to be reflected in the test case. It is filled in with the names of variables separated by commas, without "${}". ATTENTION! If the "Single step tests" checkbox is set, the variables will take the values they have after the current sampler is executed. If the "Single step tests" checkbox is not set, the variables will take the values they have before the controller starts working.
 
 - **Owner**: Specifies the creator or person responsible for this test case.
   
@@ -57,13 +57,37 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
 
 - **TMS Links**: This functionality has been added exclusively for convenience when using an external TMS in addition to Allure. To add this link, you need to specify the JMeter property “allure.tmsLink.prefix” in the .properties file or define it in the scenario using a sampler that supports code input (for example, BeanShell Sampler). After that, in the “Links” field, you can simply specify the name of the entity so that the plugin automatically adds a link to it from the property as a prefix. For example, with “allure.tmsLink.prefix” = “https://example.com/tms/” and specifying in the line “TMS-112”, a link with the name “TMS-112” and URL = “https://example.com/tms/TMS-112” will be added to the test case. ATTENTION! For more flexible settings, you can specify not the full path in the property, but only its immutable part, and write the rest in the line. For example, with “allure.tmsLink.prefix” = “https://example.com/” and specifying in the line “some/path/to/use/TMS-112”, a link with the name “TMS-112” and URL = “https://example.com/some/path/to/use/TMS-112” will be added to the test case.
 
-- **Extra labels (Allure TMS only)**: Indicating additional attributes of the test case in the format “Key -> comma -> value”. Each label should start on a new line and follow the format, otherwise it will be ignored. ATTENTION! When generating a report using the Allure console utility, support for additional fields is not implemented. The values specified here must be supported and configured in your Allure TMS to be visible in the report.
+- **Attachments (format: name-comma-file-comma-content type)**: Specifying attachments to the test case in the format "Attachment name in the report -> comma -> attachment file -> comma -> attachment file type". Each attach should start on a new line and follow the format, otherwise it will be ignored. Recommendations for filling in:
+    1. Be sure to fill in all 3 fields for each attachment to avoid errors;
+    2. In the "Attachment File" attribute, you can specify the path to the file if its directory differs from "allure-results". In this case, the folder with the results is the working directory, relative to which the path is written;
+    3. The file extension must be entered in the "Attachment File" attribute at the end (for example, "example.jpg "). Exception: file without extension;
+    4. The "Attachment file Type" attribute contains the full contents of the "Content-Type" field. So for the file "example.jpg" the file type will be "image/jpg".
+
+- **Extra labels (format: name-comma-value)**: Indicating additional attributes of the test case in the format “Key -> comma -> value”. Each label should start on a new line and follow the format, otherwise it will be ignored. ATTENTION! When generating a report using the Allure console utility, specific additional fields are not supported. Such values must be supported and configured in your Allure TMS to be visible in the report.
 
 [back](#contents)
 
 
+## Description of additional attributes of the test steps and their application:
+The plugin also supports additional step attributes implemented outside the controller, separately for each step. To add an additional attribute, you need to add a "Response Assertion" to the step. Leave all fields in it empty except "Name". This field should start with "(F) ...". What attributes does the plugin support:
+
+- **Step parameters**: The "Name" field of the assertion must begin with "(F) parameters:" (required in this case), and after the colon, list the names of all variables separated by commas, the values of which you want to output for this step in the report, without "${}". Attention! All parameters must be entered in the same Response Assertion. If several elements in the same step have a name starting with "(F) parameters:", then only the parameters from the element located in the element tree below will be included in the report, the rest will be ignored. It is important to remember that the test parameters are determined by the value of the variables at the moment immediately before entering the controller, and the step parameters are determined immediately after the completion of this step. That is, if your step uses any extractor that creates a new variable, you can immediately output it in the parameters of this step.  
+![Step parameters](./img/step_parameters.jpg)  
+
+- **Step attachments**: The "Name" field of the assertion must begin with "(F) attach:" (required in this case), and after the colon specify one attachment in a format similar to the format of the "Attachments" controller attribute. For example, the "Name" field might look like this: "(F) attach: Screenshot of the error, Screenshot_1.png, image/png". In the case of this attribute, you can add any number of assertions with attachments to each step - they will all be included in the report.  
+![Step attachments](./img/step_attachments.jpg)  
+[back](#contents)
+
+
+## Retry history support
+If you do not clear the "allure-results" folder after each run, the plugin supports saving the history of restarts of the same test and displays only the current results for each test case in the report, and stores the results of previous runs in the "Retries" tab of the report, from where they can be viewed like any current results. Attention! If you change the name of the thread group or the name of the test case, then it will be a different test and it will have its own history of runs.
+
+TMS like Allure TestOps also divide the historicity of cases by metadata. For example, if you have done 4 runs of the same test and two of them display some "Parameters" and two others (other test parameters are similar), then the system will divide the historicity of these cases into two different ones and show both in the report.  
+[back](#contents)
+
+
 ## Assertions
-For each step, the plugin analyzes all nested assertions and outputs them in the report. In case at least one of the samplers in the test case ends with an error, the failure message from the first assertion that did not pass will be displayed in the report at the top of the test case card. If the first sampler with an error does not have any assertions that did not pass, the failure message will remain empty, and the cause of the error can be found in the files attached to the test case step with request/response details.  
+For each step, the plugin analyzes all nested assertions and outputs them in the report. Exception: If the "Name" field of the assertion starts with "(F)", it will be ignored because this flag is used to declare additional step attributes. In case at least one of the samplers in the test case ends with an error, the failure message from the first assertion that did not pass will be displayed in the report at the top of the test case card. If the first sampler with an error does not have any assertions that did not pass, the failure message will remain empty, and the cause of the error can be found in the files attached to the test case step with request/response details.  
 [back](#contents)
 
 

@@ -11,6 +11,9 @@ import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.assertions.AssertionResult;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,18 +51,21 @@ public class AllureTestController extends GenericController {
     public static final String ATC_PARAMETERS = "AllureTestController.parameters";
     public static final String ATC_OWNER = "AllureTestController.owner";
     public static final String ATC_LINKS = "AllureTestController.links";
+    public static final String ATC_ATTACH = "AllureTestController.attach";
     public static final String ATC_EXTRA_LABELS = "AllureTestController.extraLabels";
 
     private static final Logger log = LoggerFactory.getLogger(AllureTestController.class);
 
-    private String testFileId = UUID.randomUUID().toString();
-    private String testFile = "";
-    private String testStatus = "passed";
-    private String testFailureMessage = "";
-    private Map<Integer, Boolean> processedSamplers = new HashMap<>();
-
     final String PASSED = "passed";
     final String FAILED = "failed";
+
+    private String testFileId = UUID.randomUUID().toString();
+    private Map<String, Object> testFile = new HashMap<>();
+    private List<Map<String, Object>> steps = new ArrayList<>();
+    private String historyId = "";
+    private String testStatus = PASSED;
+    private String testFailureMessage = "";
+    private Map<Integer, Boolean> processedSamplers = new HashMap<>();
 
     /**
      * Creates an Allure Test Controller
@@ -90,17 +96,31 @@ public class AllureTestController extends GenericController {
             " " + (isSingleStepTest() ? this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim())).trim());
             if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
                 try {
-                    String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-                    if (content.equals("true")) {
+                    List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+                    if (lines.get(0).equals("true")) {
                         return null;
                     }
                 } catch (IOException e) {
-                    log.error("Ошибка при чтении файла: " + e.getMessage());
+                    log.error("Error reading the file: " + e.getMessage());
                 }
             }
 
             if (!isSingleStepTest()) {
-                startFileMaking(getTestId(getPropertyAsString(ATC_TEST_NAME)), testFileId, String.valueOf(System.currentTimeMillis()), getTestNameField(getPropertyAsString(ATC_TEST_NAME)), getDescriptionField(), ctx.getThread().getThreadName().replace("\"", "\\\""));
+                if (file.exists()) {
+                    try {
+                        List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+                        if (lines.size() >= 2) {
+                            historyId = lines.get(1);
+                        } else {
+                            historyId = UUID.randomUUID().toString();
+                        }
+                    } catch (IOException e) {
+                        log.error("Error reading the file: " + e.getMessage());
+                    }
+                } else {
+                    historyId = UUID.randomUUID().toString();
+                }
+                startFileMaking(getTestId(getPropertyAsString(ATC_TEST_NAME)), testFileId, historyId, System.currentTimeMillis(), getTestNameField(getPropertyAsString(ATC_TEST_NAME)), getDescriptionField(), ctx.getThread().getThreadName());
             }
 
             if (this.getSubControllers().size() > 0 && this.getSubControllers().get(0) instanceof GenericController && result != null) {
@@ -113,41 +133,50 @@ public class AllureTestController extends GenericController {
             if (isSingleStepTest()) {
                 File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
                 " " + sampler.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim());
-                if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
+                if (file.exists()) {
                     try {
-                        String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-                        if (content.equals("true") && result.isSuccessful()) {
+                        List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+                        if (lines.get(0).equals("true") && result.isSuccessful() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
                             processedSamplers.put(samplerHash, true);
                             return super.next();
+                        } else {
+                            if (lines.size() >= 2) {
+                                historyId = lines.get(1);
+                            } else {
+                                historyId = UUID.randomUUID().toString();
+                            }
                         }
                     } catch (IOException e) {
-                        log.error("Ошибка при чтении файла: " + e.getMessage());
+                        log.error("Error reading the file: " + e.getMessage());
                     }
-                }
+                } else {
+                    historyId = UUID.randomUUID().toString();
+                } 
             }
             
             if (!processedSamplers.containsKey(samplerHash)) {
                 if (sampler instanceof HTTPSamplerProxy || !isWithoutNonHTTP() || (!result.isSuccessful() && isCriticalTest())) {
-                    String stepFailureMessage = (result.getFirstAssertionFailureMessage() == null) ? "" : result.getFirstAssertionFailureMessage().replace("\"", "\\\"");
+                    String stepFailureMessage = (result.getFirstAssertionFailureMessage() == null) ? "" : result.getFirstAssertionFailureMessage();
 
                     if (!result.isSuccessful() && testStatus.equals(PASSED)){
                         testStatus = FAILED;
-                        testFailureMessage = "Error on step \\\"" + result.getSampleLabel().replace("\"", "\\\"") + 
-                        "\\\".\\nAssertion failure message: " + stepFailureMessage;
+                        testFailureMessage = "Error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                        (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
                     }
 
                     if (!isSingleStepTest()) {
                         continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
                     } else {
-                        startFileMaking(getTestId(result.getSampleLabel()), filePrefix, String.valueOf(result.getStartTime()), getTestNameField(result.getSampleLabel()), sampler.getComment().replace("\"", "\\\""), ctx.getThread().getThreadName().replace("\"", "\\\""));
+                        startFileMaking(getTestId(result.getSampleLabel()), filePrefix, historyId, result.getStartTime(), getTestNameField(result.getSampleLabel()), sampler.getComment(), ctx.getThread().getThreadName());
                         continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
-                        stopFileMaking(filePrefix, String.valueOf(result.getEndTime()), (result.isSuccessful()) ? PASSED : FAILED, (result.isSuccessful()) ? "" : 
-                        "Error on step \\\"" + result.getSampleLabel().replace("\"", "\\\"") + "\\\".\\nAssertion failure message: " + stepFailureMessage);
+                        stopFileMaking(filePrefix, result.getEndTime(), (result.isSuccessful()) ? PASSED : FAILED, (result.isSuccessful()) ? "" : 
+                        ("Error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" + (result.getFirstAssertionFailureMessage() == null ?
+                        "See the attachments." : ("Assertion failure message: " + stepFailureMessage))));
                     }
 
                     if (isCriticalTest() && testStatus.equals(FAILED)){
                         if (!isSingleStepTest()) {
-                            stopFileMaking(testFileId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
+                            stopFileMaking(testFileId, System.currentTimeMillis(), testStatus, testFailureMessage);
                         } else {
                             try {
                                 writeToFile(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
@@ -174,7 +203,7 @@ public class AllureTestController extends GenericController {
     @Override
     protected Sampler nextIsNull() throws NextIsNullException {
         if (!isSingleStepTest()) {
-            stopFileMaking(testFileId, String.valueOf(System.currentTimeMillis()), testStatus, testFailureMessage);
+            stopFileMaking(testFileId, System.currentTimeMillis(), testStatus, testFailureMessage);
         } else {
             try {
                 writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
@@ -186,69 +215,76 @@ public class AllureTestController extends GenericController {
         return super.nextIsNull();
     }
 
-    private void startFileMaking(String testId, String uuid, String startTime, String testName, String description, String threadName) {
-        testFile = "{\"name\":\"" + testName + 
-        "\",\"description\":\"" + description + 
-        "\",\"stage\":\"finished\",\"start\":" + startTime +
-        ",\"uuid\":\"" + uuid + 
-        "\",\"historyId\":\"" + uuid +
-        "\",\"fullName\":\"" + threadName + "  " + testName +
-        "\",\"parameters\":[" + ParametersConstructor(getParametersField()) +
-        "],\"links\":[" + linkConstructor() +
-        "],\"labels\":[" + testId + getEpicField() + getStoryField() + getFeatureField() +
-        getSeverity() + getOwnerField() + tagsConstructor() + extraLabelsConstructor() +
-        "{\"name\":\"host\",\"value\":\"" + threadName +
-        "\"}],\"steps\":[";
+    private void startFileMaking(String testId, String uuid, String history, Long startTime, String testName, String description, String threadName) {
+        testFile = new HashMap<>();
+
+        testFile.put("name", testName.trim());
+        testFile.put("description", description.trim());
+        testFile.put("start", startTime);
+        testFile.put("uuid", uuid);
+        testFile.put("historyId", history);
+        testFile.put("fullName", threadName.trim() + "  " + testName.trim());
+        ParametersConstructor(testFile, getParametersField());
+        linkConstructor(testFile);
+        labelsConstructor(testFile, testId);
     }
 
     private void continueFileMaking(String uuid, String failureMessage, Sampler sampler, SampleResult result) {
-        String stepStatus = (result.isSuccessful()) ? "passed" : "failed";
-        testFile += "{\"name\":\"" + getTestNameField(result.getSampleLabel()) +
-        "\",\"status\":\"" + stepStatus +
-        "\",\"stage\":\"finished\",\"parameters\":[" + getStepParameters(result) +
-        "],\"steps\":[" + getAssertionResults(result) +
-        "],\"statusDetails\":{\"message\":\"" + failureMessage +
-        "\"},\"start\":" + result.getStartTime() +
-        ",\"stop\":" + result.getEndTime() +
-        ",";
-
-        if (!isWithoutContent() || (isCriticalTest() && !result.isSuccessful())) {
-            try {
-                if (sampler instanceof HTTPSamplerProxy) {
-                    writeToFile(getPathToResults(), uuid + "-request-attachment", formatRequestData(result));
-                    writeToFile(getPathToResults(), uuid + "-response-attachment", formatResponseData(result));
-                } else {
-                    writeToFile(getPathToResults(), uuid + "-request-attachment", result.getSamplerData().toString());
-                    writeToFile(getPathToResults(), uuid + "-response-attachment", result.getResponseDataAsString());
-                }
-            } catch (IOException ex) {
-                log.error("Failed to write request or response file.", ex);
-            }
-
-            testFile += "\"attachments\":[{\"name\":\"Request\",\"source\":\"" + uuid +
-            "-request-attachment\",\"type\":\"application/json\"},{\"name\":\"Response\",\"source\":\"" + uuid +
-            "-response-attachment\",\"type\":\"application/json\"}]},";
-        } else {
-            testFile += "\"attachments\":[]},";
+        if (isSingleStepTest()) {
+            steps = new ArrayList<>();
         }
+
+        String stepStatus = (result.isSuccessful()) ? PASSED : FAILED;
+        Map<String, Object> currentStep = new HashMap<>();
+
+        currentStep.put("name", getTestNameField(result.getSampleLabel()).trim());
+        currentStep.put("status", stepStatus);
+        currentStep.put("start", result.getStartTime());
+        currentStep.put("stop", result.getEndTime()); 
+        getStepParameters(currentStep, result);
+        getAssertionResults(currentStep, result);
+        getStepAttach(currentStep, sampler, result, uuid);
+
+        if (!result.isSuccessful()) {
+            Map<String, Object> statusDetails = new HashMap<>();
+            statusDetails.put("message", failureMessage);
+            currentStep.put("statusDetails", statusDetails);
+        }
+
+        steps.add(currentStep);
     }
 
-    private void stopFileMaking(String uuid, String stopTime, String status, String failureMessage) {
-        if (testFile.endsWith(",")) {
-            testFile = testFile.replaceFirst(".$", "");
-        }
-        testFile += "],\"stop\":" + stopTime +
-        ",\"status\":\"" + status +
-        "\",\"statusDetails\":{\"message\":\"" + failureMessage +
-        "\"}}";
-        if (isDebugMode()) {
-            testFile = formatJson(testFile);
+    private void stopFileMaking(String uuid, Long stopTime, String status, String failureMessage) {
+
+        testFile.put("steps", steps);
+        testFile.put("stop", stopTime);
+        testFile.put("status", status);
+
+        if (status.equals(FAILED)) {
+            Map<String, Object> statusDetails = new HashMap<>();
+            statusDetails.put("message", failureMessage);
+            testFile.put("statusDetails", statusDetails);
         }
 
+        if (!getAttachField().matches("\\s*")) {
+            List<Map<String, Object>> attachArray = new ArrayList<>();
+            attachConstructor(attachArray, getAttachField());
+            testFile.put("attachments", attachArray);
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+
         try {
-            writeToFile(getPathToResults(), uuid + "-result.json", testFile);
+            String jsonString = mapper.writeValueAsString(testFile);
+
+            if (isDebugMode()) {
+                jsonString = formatJson(jsonString);
+            }
+
+            writeToFile(getPathToResults(), uuid + "-result.json", jsonString);
             writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + " " +
-            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim())).trim(), (status.equals(PASSED)) ? "true" : "false");
+            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : 
+            getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim())).trim(), ((status.equals(PASSED)) ? "true" : "false") + "\n" + historyId);
         } catch (IOException ex) {
             log.error("Failed to write result file.", ex);
         }
@@ -277,68 +313,56 @@ public class AllureTestController extends GenericController {
     }
 
     /**
-     * The following two methods are needed for the correct display of content in JSON 
-     * format. Without them, everything will be in one line.  
+     * This method is needed for the correct display of content in JSON 
+     * format. Without it, everything will be in one line.  
      */
-    private String formatJson(String json) {
-        int level = 0;
-        boolean inQuotes = false;
-        boolean isEscaped = false;
-        StringBuilder prettyJson = new StringBuilder();
-        for (int i = 0; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '\"' && !isEscaped) {
-                inQuotes = !inQuotes;
-            }
-            if (!inQuotes) {
-                if (c == '{' || c == '[') {
-                    prettyJson.append(c);
-                    prettyJson.append('\n');
-                    prettyJson.append(repeat("  ", ++level));
-                } else if (c == '}' || c == ']') {
-                    prettyJson.append('\n');
-                    prettyJson.append(repeat("  ", --level));
-                    prettyJson.append(c);
-                } else if (c == ',') {
-                    prettyJson.append(c);
-                    prettyJson.append('\n');
-                    prettyJson.append(repeat("  ", level));
-                } else {
-                    prettyJson.append(c);
-                }
-            } else {
-                prettyJson.append(c);
-            }
-            isEscaped = c == '\\' && !isEscaped;
+    private String formatJson(String jsonString) {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+        try {
+            Object jsonObject = mapper.readValue(jsonString, Object.class);
+            jsonString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonObject);
+        } catch (IOException ex) {
+            log.error("Failed to get right json format.", ex);
         }
-        return prettyJson.toString();
-    }
-    
-    private static String repeat(String str, int times) {
-        return new String(new char[times]).replace("\0", str);
+        
+        return jsonString;
     }
 
     /**
      * This method is needed to obtain the results of all assertions from each sampler.  
      * The results are immediately converted into the necessary JSON format.  
      */
-    private String getAssertionResults(SampleResult result) {
+    private void getAssertionResults(Map<String, Object> resultsTo, SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
-        List<String> results = new ArrayList<>();
-
+        List<Map<String, Object>> results = new ArrayList<>();
+    
         for (AssertionResult assertionResult : assertionResults) {
-            String name = assertionResult.getName().replace("\"", "\\\"");
-            if (name.startsWith("parameters:")) {
+            String name = assertionResult.getName();
+
+            if (name.startsWith("(F)")) {
                 continue;
             }
-            String status = (assertionResult.isFailure() || assertionResult.isError()) ? "failed" : "passed";
-            String message = (status.equals("passed")) ? "" : assertionResult.getFailureMessage().replace("\"", "\\\"");
 
-            String resultString = String.format("{\"name\":\"%s\",\"status\":\"%s\",\"stage\":\"finished\",\"statusDetails\":{\"message\":\"%s\"}}", name, status, message);
-            results.add(resultString);
+            String status = (assertionResult.isFailure() || assertionResult.isError()) ? FAILED : PASSED;
+            String message = (status.equals(PASSED)) ? "" : assertionResult.getFailureMessage();
+    
+            Map<String, Object> resultJson = new HashMap<>();
+            resultJson.put("name", name.trim());
+            resultJson.put("status", status);
+    
+            if (status.equals(FAILED)) {
+                Map<String, Object> statusDetails = new HashMap<>();
+                statusDetails.put("message", message.trim());
+                resultJson.put("statusDetails", statusDetails);
+            }
+    
+            results.add(resultJson);
         }
-
-        return String.join(",", results);
+    
+        if (!results.isEmpty()) {
+            resultsTo.put("steps", results);
+        }
     }
 
     /**
@@ -346,20 +370,66 @@ public class AllureTestController extends GenericController {
      * In this case, the values of the variables that they have after the step execution are taken.
      * Instructions for the correct output of step parameters are written in the repository.
      */
-    private String getStepParameters(SampleResult result) {
+    private void getStepParameters(Map<String, Object> paramsTo, SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
     
         for (AssertionResult assertionResult : assertionResults) {
             String name = assertionResult.getName().replace("\"", "\\\"");
-            if (name.startsWith("parameters:")) {
-                String params = name.trim().replaceAll("parameters:", "");
+            if (name.startsWith("(F) parameters:")) {
+                String params = name.replaceAll("\\(F\\) parameters:", "").trim();
                 if (!params.matches("\\s*")) {
-                    return ParametersConstructor(params);
+                    ParametersConstructor(paramsTo, params);
                 }
             }
         }
+    }
+
+    private void getStepAttach(Map<String, Object> attachTo, Sampler sampler, SampleResult result, String uuid) {
+        AssertionResult[] assertionResults = result.getAssertionResults();
+        List<Map<String, Object>> attachments = new ArrayList<>();
+        StringBuilder allAttachments = new StringBuilder();
+
+        if (!isWithoutContent() || (isCriticalTest() && !result.isSuccessful())) {
+            try {
+                if (sampler instanceof HTTPSamplerProxy) {
+                    writeToFile(getPathToResults(), uuid + "-request-attachment", formatRequestData(result));
+                    writeToFile(getPathToResults(), uuid + "-response-attachment", formatResponseData(result));
+                } else {
+                    writeToFile(getPathToResults(), uuid + "-request-attachment", result.getSamplerData().toString());
+                    writeToFile(getPathToResults(), uuid + "-response-attachment", result.getResponseDataAsString());
+                }
+            } catch (IOException ex) {
+                log.error("Failed to write request or response file.", ex);
+            }
+
+            Map<String, Object> requestAttachment = new HashMap<>();
+            requestAttachment.put("name", "Request");
+            requestAttachment.put("source", uuid + "-request-attachment");
+            requestAttachment.put("type", "application/json");
+            attachments.add(requestAttachment);
+
+            Map<String, Object> responseAttachment = new HashMap<>();
+            responseAttachment.put("name", "Response");
+            responseAttachment.put("source", uuid + "-response-attachment");
+            responseAttachment.put("type", "application/json");
+            attachments.add(responseAttachment);
+        }
     
-        return "";
+        for (AssertionResult assertionResult : assertionResults) {
+            String name = assertionResult.getName().replace("\"", "\\\"");
+            if (name.startsWith("(F) attach:")) {
+                String attach = name.replaceAll("\\(F\\) attach:", "").trim();
+                allAttachments.append(attach.trim()).append("\n");
+            }
+        }
+
+        if (allAttachments.length() > 0) {
+            attachConstructor(attachments, allAttachments.toString());
+        } 
+
+        if (!attachments.isEmpty()) {
+            attachTo.put("attachments", attachments);
+        }
     }
 
     //
@@ -496,7 +566,7 @@ public class AllureTestController extends GenericController {
 
     public String getTestId(String testNameString) {
         if (testNameString.matches("\\d+\\s*-.+")){
-            return "{\"name\":\"allure_id\",\"value\":\"" + testNameString.split("-")[0].trim() + "\"},";
+            return testNameString.split("-")[0].trim();
         } else {
             return "";
         }
@@ -506,30 +576,22 @@ public class AllureTestController extends GenericController {
     // Test name
     //
     public void setTestNameField(String te) {
-        if(!isSingleStepTest()) {
-            setProperty(ATC_TEST_NAME, te);
-        } else {
-            setProperty(ATC_TEST_NAME, "");
-        }
+        setProperty(ATC_TEST_NAME, te);
     }
 
     public String getTestNameField(String testNameString) {
-        return testNameString.replaceFirst("^\\d+\\s*-\\s*", "").replace("\"", "\\\"");
+        return testNameString.replaceFirst("^\\d+\\s*-\\s*", "");
     }
 
     //
     // Description
     //
     public void setDescriptionField(String de) {
-        if(!isSingleStepTest()) {
-            setProperty(ATC_DESCRIPTION, de);
-        } else {
-            setProperty(ATC_DESCRIPTION, "");
-        }
+        setProperty(ATC_DESCRIPTION, de);
     }
 
     public String getDescriptionField() {
-        return getPropertyAsString(ATC_DESCRIPTION, "").replace("\"", "\\\"");
+        return getPropertyAsString(ATC_DESCRIPTION);
     }
 
     //
@@ -545,9 +607,9 @@ public class AllureTestController extends GenericController {
 
     public String getSeverity() {
         if(getPropertyAsString(ATC_SEVERITY).matches("\\s*")) {
-            return "{\"name\":\"severity\",\"value\":\"normal\"},";
+            return "normal";
         } else {
-            return "{\"name\":\"severity\",\"value\":\"" + getPropertyAsString(ATC_SEVERITY).replace("\"", "\\\"") + "\"},";
+            return getPropertyAsString(ATC_SEVERITY);
         }
     }
 
@@ -559,26 +621,7 @@ public class AllureTestController extends GenericController {
     }
 
     public String getEpicField() {
-        if (getPropertyAsString(ATC_EPIC).matches("\\s*")) {
-            return "";
-        } else {
-            return "{\"name\":\"epic\",\"value\":\"" + getPropertyAsString(ATC_EPIC).replace("\"", "\\\"") + "\"},";
-        }
-    }
-
-    //
-    // Story
-    //
-    public void setStoryField(String st) {
-        setProperty(ATC_STORY, st);
-    }
-
-    public String getStoryField() {
-        if (getPropertyAsString(ATC_STORY).matches("\\s*")) {
-            return "";
-        } else {
-            return "{\"name\":\"story\",\"value\":\"" + getPropertyAsString(ATC_STORY).replace("\"", "\\\"") + "\"},";
-        }
+        return getPropertyAsString(ATC_EPIC);
     }
 
     //
@@ -589,11 +632,18 @@ public class AllureTestController extends GenericController {
     }
 
     public String getFeatureField() {
-        if (getPropertyAsString(ATC_FEATURE).matches("\\s*")) {
-            return "";
-        } else {
-            return "{\"name\":\"feature\",\"value\":\"" + getPropertyAsString(ATC_FEATURE).replace("\"", "\\\"") + "\"},";
-        }
+        return getPropertyAsString(ATC_FEATURE);
+    }
+
+    //
+    // Story
+    //
+    public void setStoryField(String st) {
+        setProperty(ATC_STORY, st);
+    }
+
+    public String getStoryField() {
+        return getPropertyAsString(ATC_STORY);
     }
 
     //
@@ -604,23 +654,7 @@ public class AllureTestController extends GenericController {
     }
 
     public String getTagsField() {
-        return getPropertyAsString(ATC_TAGS, "");
-    }
-
-    private String tagsConstructor() {
-        String tags = getTagsField();
-        String[] values = tags.split(",");
-        StringBuilder result = new StringBuilder();
-
-        Pattern pattern = Pattern.compile("\\s*");
-
-        for (String value : values) {
-            if (!pattern.matcher(value).matches()) {
-                result.append("{ \"name\":\"tag\",\"value\":\"").append(value.trim().replace("\"", "\\\"")).append("\"},");
-            }
-        }
-
-        return result.toString();
+        return getPropertyAsString(ATC_TAGS);
     }
 
     //
@@ -631,33 +665,31 @@ public class AllureTestController extends GenericController {
     }
 
     public String getParametersField() {
-        return getPropertyAsString(ATC_PARAMETERS, "");
+        return getPropertyAsString(ATC_PARAMETERS);
     }
 
-    private String ParametersConstructor(String params) {
-        String[] values = params.split(",");
-        StringBuilder result = new StringBuilder();
+    private void ParametersConstructor(Map<String, Object> paramsTo, String params) {
+        List<Map<String, Object>> paramsArray = new ArrayList<>();
     
+        String[] values = params.split(",");
+        
         Pattern pattern = Pattern.compile("\\s*");
         JMeterContext context = JMeterContextService.getContext();
-    
+        
         for (String value : values) {
             value = value.trim();
             if (!pattern.matcher(value).matches()) {
                 String variableValue = context.getVariables().get(value);
-                if (variableValue != null) {
-                    variableValue = variableValue.replaceAll("\\\\*\"", "\\\\\"");
-                } else {
-                    variableValue = "null";
-                }
-                result.append("{ \"name\":\"").append(value).append("\",\"value\":\"").append(variableValue).append("\"},");
+                Map<String, Object> parameter = new HashMap<>();
+                parameter.put("name", value);
+                parameter.put("value", variableValue);
+                paramsArray.add(parameter);
             }
         }
-    
-        if (result.length() > 0) {
-            result.setLength(result.length() - 1); // comma delete
+        
+        if (!paramsArray.isEmpty()) {
+            paramsTo.put("parameters", paramsArray);
         }
-        return result.toString();
     }
 
     //
@@ -668,11 +700,7 @@ public class AllureTestController extends GenericController {
     }
 
     public String getOwnerField() {
-        if (getPropertyAsString(ATC_OWNER).matches("\\s*")) {
-            return "";
-        } else {
-            return "{\"name\":\"owner\",\"value\":\"" + getPropertyAsString(ATC_OWNER).replace("\"", "\\\"") + "\"},";
-        }
+        return getPropertyAsString(ATC_OWNER);
     }
 
     //
@@ -683,38 +711,77 @@ public class AllureTestController extends GenericController {
     }
 
     public String getLinksField() {
-        return getPropertyAsString(ATC_LINKS, "");
+        return getPropertyAsString(ATC_LINKS);
     }
 
-    private String linkConstructor() {
+    private void linkConstructor(Map<String, Object> linksTo) {
+        List<Map<String, Object>> linkArray = new ArrayList<>();
+
         String links = getLinksField();
         String[] lines = links.split("\n");
-        StringBuilder result = new StringBuilder();
-    
+        
         Pattern pattern1 = Pattern.compile("[^,]+,[^,]+");
         Pattern pattern2 = Pattern.compile("[^,]+");
-    
+        
         for (String line : lines) {
             Matcher matcher1 = pattern1.matcher(line);
             Matcher matcher2 = pattern2.matcher(line);
             if (matcher1.matches()) {
                 String[] parts = line.split(",");
-                result.append("{ \"name\":\"").append(parts[0].trim().replace("\"", "\\\"")).append("\",\"url\":\"").append(parts[1].trim().replace("\"", "\\\"")).append("\"},");
+                Map<String, Object> link = new HashMap<>();
+                link.put("name", parts[0].trim());
+                link.put("url", parts[1].trim());
+                linkArray.add(link);
             } else if (matcher2.matches() && line.trim().matches("^https?://.*")) {
-                String value = line.trim().replace("\"", "\\\"");
-                String name = value.substring(value.lastIndexOf("/") + 1);
-                result.append("{ \"name\":\"").append(name).append("\",\"url\":\"").append(value).append("\"},");
+                String value = line.trim();
+                String name = value.substring(value.lastIndexOf("/") + 1).trim();
+                Map<String, Object> link = new HashMap<>();
+                link.put("name", name);
+                link.put("url", value);
+                linkArray.add(link);
             } else if (matcher2.matches() && JMeterUtils.getPropDefault("allure.tmsLink.prefix", null) != null) {
-                String value = line.trim().replace("\"", "\\\"");
-                String name = value.contains("/") ? value.substring(value.lastIndexOf("/") + 1) : value;
-                result.append("{ \"type\":\"tms\",\"name\":\"").append(name).append("\",\"url\":\"").append(JMeterUtils.getProperty("allure.tmsLink.prefix") + value).append("\"},");
+                String value = line.trim();
+                String name = value.contains("/") ? value.substring(value.lastIndexOf("/") + 1).trim() : value;
+                Map<String, Object> link = new HashMap<>();
+                link.put("type", "tms");
+                link.put("name", name);
+                link.put("url", JMeterUtils.getProperty("allure.tmsLink.prefix") + value);
+                linkArray.add(link);
             }
         }
-    
-        if (result.length() > 0) {
-            result.setLength(result.length() - 1); // comma delete
+        
+        if (!linkArray.isEmpty()) {
+            linksTo.put("links", linkArray);
         }
-        return result.toString();
+    }
+
+    //
+    // Attachments
+    //
+    public void setAttachField(String at) {
+        setProperty(ATC_ATTACH, at);
+    }
+
+    public String getAttachField() {
+        return getPropertyAsString(ATC_ATTACH);
+    }
+
+    private void attachConstructor(List<Map<String, Object>> attachments, String attach) {
+        String[] lines = attach.split("\n");
+    
+        Pattern pattern = Pattern.compile("[^,]+,[^,]+,[^,]+");
+    
+        for (String line : lines) {
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.matches()) {
+                String[] parts = line.split(",");
+                Map<String, Object> attachment = new HashMap<>();
+                attachment.put("name", parts[0].trim());
+                attachment.put("source", parts[1].trim());
+                attachment.put("type", parts[2].trim());
+                attachments.add(attachment);
+            }
+        }
     }
 
     //
@@ -725,23 +792,56 @@ public class AllureTestController extends GenericController {
     }
 
     public String getExtraLabelsField() {
-        return getPropertyAsString(ATC_EXTRA_LABELS, "");
+        return getPropertyAsString(ATC_EXTRA_LABELS);
     }
 
-    private String extraLabelsConstructor() {
-        String extraLabels = getExtraLabelsField();
-        String[] lines = extraLabels.split("\n");
-        StringBuilder result = new StringBuilder();
+    private void labelsConstructor(Map<String, Object> labelsTo, String testId) {
+        List<Map<String, Object>> labelArray = new ArrayList<>();
 
-        Pattern pattern = Pattern.compile("[^,]+,[^,]+");
+        addLabel(labelArray, "severity", getSeverity());
+        if (!testId.matches("\\s*")) {
+            addLabel(labelArray, "allure_id", testId);
+        }
+        addLabelIfNotEmpty(labelArray, "epic", getEpicField());
+        addLabelIfNotEmpty(labelArray, "feature", getFeatureField());
+        addLabelIfNotEmpty(labelArray, "story", getStoryField());
+        addLabelIfNotEmpty(labelArray, "owner", getOwnerField());
 
-        for (String line : lines) {
-            Matcher matcher = pattern.matcher(line);
-            if (matcher.matches()) {
-                String[] parts = line.split(",");
-                result.append("{ \"name\":\"").append(parts[0].trim().replace("\"", "\\\"")).append("\",\"value\":\"").append(parts[1].trim().replace("\"", "\\\"")).append("\"},");
+        String tags = getTagsField();
+        String[] values = tags.split(",");
+        Pattern pattern1 = Pattern.compile("\\s*");
+
+        for (String value : values) {
+            if (!pattern1.matcher(value).matches()) {
+                addLabel(labelArray, "tag", value);
             }
         }
-        return result.toString();
+
+        String extraLabels = getExtraLabelsField();
+        String[] lines = extraLabels.split("\n");
+        Pattern pattern2 = Pattern.compile("[^,]+,[^,]+");
+
+        for (String line : lines) {
+            Matcher matcher = pattern2.matcher(line);
+            if (matcher.matches()) {
+                String[] parts = line.split(",");
+                addLabel(labelArray, parts[0], parts[1]);
+            }
+        }
+    
+        labelsTo.put("labels", labelArray);
+    }
+
+    private void addLabel(List<Map<String, Object>> labelArray, String name, String value) {
+        Map<String, Object> label = new HashMap<>();
+        label.put("name", name.trim());
+        label.put("value", value.trim());
+        labelArray.add(label);
+    }
+    
+    private void addLabelIfNotEmpty(List<Map<String, Object>> labelArray, String name, String value) {
+        if (!value.matches("\\s*")) {
+            addLabel(labelArray, name, value);
+        }
     }
 }
