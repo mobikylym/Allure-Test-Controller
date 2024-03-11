@@ -75,7 +75,8 @@ The plugin also supports additional step attributes implemented outside the cont
 ![Step parameters](./img/step_parameters.jpg)  
 
 - **Step attachments**: The "Name" field of the assertion must begin with "(F) attach:" (required in this case), and after the colon specify one attachment in a format similar to the format of the "Attachments" controller attribute. For example, the "Name" field might look like this: "(F) attach: Screenshot of the error, Screenshot_1.png, image/png". In the case of this attribute, you can add any number of assertions with attachments to each step - they will all be included in the report.  
-![Step attachments](./img/step_attachments.jpg)  
+![Step attachments](./img/step_attachments.jpg)
+
 [back](#contents)
 
 
