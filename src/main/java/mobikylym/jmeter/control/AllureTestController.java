@@ -12,7 +12,6 @@ import org.apache.jmeter.protocol.http.sampler.HTTPSamplerProxy;
 import org.apache.jmeter.assertions.AssertionResult;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.File;
 import java.io.IOException;
@@ -313,20 +312,45 @@ public class AllureTestController extends GenericController {
     }
 
     /**
-     * This method is needed for the correct display of content in JSON 
-     * format. Without it, everything will be in one line.  
+     * The following two methods are needed for the correct display of content in JSON 
+     * format. Without them, everything will be in one line.  
      */
-    private String formatJson(String jsonString) {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        try {
-            Object jsonObject = mapper.readValue(jsonString, Object.class);
-            jsonString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonObject);
-        } catch (IOException ex) {
-            log.error("Failed to get right json format.", ex);
+    private String formatJson(String json) {
+        int level = 0;
+        boolean inQuotes = false;
+        boolean isEscaped = false;
+        StringBuilder prettyJson = new StringBuilder();
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\"' && !isEscaped) {
+                inQuotes = !inQuotes;
+            }
+            if (!inQuotes) {
+                if (c == '{' || c == '[') {
+                    prettyJson.append(c);
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", ++level));
+                } else if (c == '}' || c == ']') {
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", --level));
+                    prettyJson.append(c);
+                } else if (c == ',') {
+                    prettyJson.append(c);
+                    prettyJson.append('\n');
+                    prettyJson.append(repeat("  ", level));
+                } else {
+                    prettyJson.append(c);
+                }
+            } else {
+                prettyJson.append(c);
+            }
+            isEscaped = c == '\\' && !isEscaped;
         }
-        
-        return jsonString;
+        return prettyJson.toString();
+    }
+    
+    private static String repeat(String str, int times) {
+        return new String(new char[times]).replace("\0", str);
     }
 
     /**
