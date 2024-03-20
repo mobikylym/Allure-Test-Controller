@@ -158,7 +158,7 @@ public class AllureTestController extends GenericController {
 
         if (sampler != null && !isFirst()) {
             int samplerHash = result.hashCode();
-            if (isSingleStepTest()) {
+            if (isSingleStepTest() && getStepState(result).matches("step")) {
                 File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
                 " " + sampler.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim());
                 if (file.exists()) {
@@ -188,7 +188,7 @@ public class AllureTestController extends GenericController {
 
                     if (getStepState(result).matches("step")) {
                         if (!isContainer()) {
-                            if (!result.isSuccessful() && testStatus.equals(PASSED)){
+                            if (!result.isSuccessful() && testStatus.equals(PASSED)) {
                                 testStatus = FAILED;
                                 testFailureMessage = "Error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
                                 (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
@@ -206,7 +206,7 @@ public class AllureTestController extends GenericController {
                                 "See the attachments." : ("Assertion failure message: " + stepFailureMessage))));
                             }
         
-                            if (isCriticalTest() && testStatus.equals(FAILED)){
+                            if (isCriticalTest() && testStatus.equals(FAILED)) {
                                 if (!isSingleStepTest()) {
                                     stopFileMaking(testFileId, System.currentTimeMillis(), testStatus, testFailureMessage);
                                 } else {
@@ -360,10 +360,10 @@ public class AllureTestController extends GenericController {
             } catch (IOException ex) {
                 log.error("Error reading the container file: " + ex.getMessage());
             }
-            
         }
 
         if ((!befores.isEmpty() || !afters.isEmpty()) && !children.isEmpty()) {
+            
             containerFile.put("children", children);
             containerFile.put("befores", befores);
             containerFile.put("afters", afters);
@@ -732,7 +732,7 @@ public class AllureTestController extends GenericController {
     //
 
     public String getTestId(String testNameString) {
-        if (testNameString.matches("\\d+\\s*-.+")){
+        if (testNameString.matches("\\d+\\s*-.+")) {
             return testNameString.split("-")[0].trim();
         } else {
             return "";
