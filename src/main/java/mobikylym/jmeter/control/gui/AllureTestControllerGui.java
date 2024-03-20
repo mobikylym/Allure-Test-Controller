@@ -32,6 +32,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JCheckBox isSingleStep = new JCheckBox("Single step tests  ", false); //Single step tests
     private JCheckBox withoutContent = new JCheckBox("Without content  ", false); //Without content
     private JCheckBox withoutNonHTTP = new JCheckBox("Without non-HTTP steps  ", false); //Without non-HTTP steps
+    private JCheckBox isContainer = new JCheckBox("Container  ", false); //Container
     private JCheckBox debugMode = new JCheckBox("Debug mode  ", false); //Debug mode
     private JTextField testName = new JTextField(); //Test
     private JTextField description = new JTextField(); //Description
@@ -45,6 +46,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JTextArea links = new JTextArea(); //Links
     private JTextArea attach = new JTextArea(); //Attachments
     private JTextArea extraLabels = new JTextArea(); //Extra Labels
+    private JTextArea environment = new JTextArea(); //Environment
 
     @Override
     public String getStaticLabel() {
@@ -76,6 +78,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         isCritical.setSelected(false);
         withoutContent.setSelected(false);
         withoutNonHTTP.setSelected(false);
+        isContainer.setSelected(false);
         debugMode.setSelected(false);
         testName.setText("");
         description.setText("");
@@ -90,6 +93,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         links.setText("");
         attach.setText("");
         extraLabels.setText("");
+        environment.setText("");
     }
 
     @Override
@@ -103,6 +107,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_IS_SINGLE_STEP, isSingleStep.isSelected());
             obj.setProperty(AllureTestController.ATC_WITHOUT_CONTENT, withoutContent.isSelected());
             obj.setProperty(AllureTestController.ATC_WITHOUT_NON_HTTP, withoutNonHTTP.isSelected());
+            obj.setProperty(AllureTestController.ATC_IS_CONTAINER, isContainer.isSelected());
             obj.setProperty(AllureTestController.ATC_DEBUG_MODE, debugMode.isSelected());
             obj.setProperty(AllureTestController.ATC_TEST_NAME, testName.getText());
             obj.setProperty(AllureTestController.ATC_DESCRIPTION, description.getText());
@@ -116,6 +121,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_LINKS, links.getText());
             obj.setProperty(AllureTestController.ATC_ATTACH, attach.getText());
             obj.setProperty(AllureTestController.ATC_EXTRA_LABELS, extraLabels.getText());
+            obj.setProperty(AllureTestController.ATC_ENVIRONMENT, environment.getText());
         }
     }
 
@@ -128,6 +134,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         isSingleStep.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_IS_SINGLE_STEP));
         withoutContent.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_WITHOUT_CONTENT));
         withoutNonHTTP.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_WITHOUT_NON_HTTP));
+        isContainer.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_IS_CONTAINER));
         debugMode.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_DEBUG_MODE));
         testName.setText(element.getPropertyAsString(AllureTestController.ATC_TEST_NAME));
         description.setText(element.getPropertyAsString(AllureTestController.ATC_DESCRIPTION));
@@ -141,6 +148,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         links.setText(element.getPropertyAsString(AllureTestController.ATC_LINKS));
         attach.setText(element.getPropertyAsString(AllureTestController.ATC_ATTACH));
         extraLabels.setText(element.getPropertyAsString(AllureTestController.ATC_EXTRA_LABELS));
+        environment.setText(element.getPropertyAsString(AllureTestController.ATC_ENVIRONMENT));
     }
 
     public AllureTestControllerGui() {
@@ -202,20 +210,39 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         checkBoxConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(folderOverwrite, checkBoxConstraints);
 
-        checkBoxConstraints.gridx = 2;
+        checkBoxConstraints.gridx ++;
         mainPanel.add(isCritical, checkBoxConstraints);
 
-        checkBoxConstraints.gridx = 3;
+        checkBoxConstraints.gridx ++;
         mainPanel.add(isSingleStep, checkBoxConstraints);
 
-        checkBoxConstraints.gridx = 4;
+        checkBoxConstraints.gridx ++;
         mainPanel.add(withoutContent, checkBoxConstraints);
 
-        checkBoxConstraints.gridx = 5;
+        checkBoxConstraints.gridx ++;
         mainPanel.add(withoutNonHTTP, checkBoxConstraints);
 
-        checkBoxConstraints.gridx = 6;
+        checkBoxConstraints.gridx ++;
+        mainPanel.add(isContainer, checkBoxConstraints);
+
+        checkBoxConstraints.gridx ++;
         mainPanel.add(debugMode, checkBoxConstraints);
+
+        isContainer.addItemListener(evt -> {
+            if (evt.getStateChange() == ItemEvent.SELECTED) {
+
+                isCritical.setEnabled(false);
+                isCritical.setSelected(false);
+                isSingleStep.setEnabled(false);
+                isSingleStep.setSelected(false);
+
+            } else {
+
+                isCritical.setEnabled(true);
+                isSingleStep.setEnabled(true);
+
+            }
+        });
 
         JLabel nameLabel = new JLabel("Test name: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;
@@ -305,7 +332,7 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         separatorConstraints.gridy = editConstraints.gridy + 1;
         mainPanel.add(new JSeparator(), separatorConstraints);
 
-        JLabel linksLabel = new JLabel("Links:", JLabel.CENTER);
+        JLabel linksLabel = new JLabel("Links/Issues:", JLabel.CENTER);
         labelConstraints.anchor = GridBagConstraints.CENTER;
         labelConstraints.insets = new Insets(3, 0, 0, 0);
         labelConstraints.gridy = separatorConstraints.gridy + 1;
@@ -336,6 +363,15 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         JScrollPane scrollPane3 = new JScrollPane(extraLabels);
         scrollPane3.setPreferredSize(new Dimension(200, 124));
         mainPanel.add(scrollPane3, editConstraints);
+
+        JLabel envLabel = new JLabel("Environment:", JLabel.CENTER);
+        labelConstraints.gridy = editConstraints.gridy + 1;
+        mainPanel.add(envLabel, labelConstraints);
+
+        editConstraints.gridy = labelConstraints.gridy + 1;
+        JScrollPane scrollPane4 = new JScrollPane(environment);
+        scrollPane4.setPreferredSize(new Dimension(200, 62));
+        mainPanel.add(scrollPane4, editConstraints);
 
         JPanel container = new JPanel(new BorderLayout());
         container.add(mainPanel, BorderLayout.NORTH);
