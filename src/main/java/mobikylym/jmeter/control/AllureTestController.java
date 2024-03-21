@@ -149,7 +149,6 @@ public class AllureTestController extends GenericController {
             }
             
             containerFile.put("uuid", containerId);
-            containerFile.put("start", System.currentTimeMillis());
 
             if (this.getSubControllers().size() > 0 && this.getSubControllers().get(0) instanceof GenericController && result != null) {
                 processedSamplers.put(result.hashCode(), true);
@@ -190,7 +189,7 @@ public class AllureTestController extends GenericController {
                         if (!isContainer()) {
                             if (!result.isSuccessful() && testStatus.equals(PASSED)) {
                                 testStatus = FAILED;
-                                testFailureMessage = "Error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                                testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
                                 (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
                             }
         
@@ -202,7 +201,7 @@ public class AllureTestController extends GenericController {
                                 startFileMaking(getTestId(result.getSampleLabel()), filePrefix, historyId, result.getStartTime(), getTestNameField(result.getSampleLabel()), sampler.getComment(), ctx.getThread().getThreadName());
                                 continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
                                 stopFileMaking(filePrefix, result.getEndTime(), (result.isSuccessful()) ? PASSED : FAILED, (result.isSuccessful()) ? "" : 
-                                ("Error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" + (result.getFirstAssertionFailureMessage() == null ?
+                                ("First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" + (result.getFirstAssertionFailureMessage() == null ?
                                 "See the attachments." : ("Assertion failure message: " + stepFailureMessage))));
                             }
         
@@ -292,7 +291,6 @@ public class AllureTestController extends GenericController {
         }
 
         if (stepState.equals("before")) {
-            containerFile.put("stop", result.getEndTime());
             befores.add(currentStep);
         } else
 
@@ -301,7 +299,6 @@ public class AllureTestController extends GenericController {
         } else
 
         if (stepState.equals("after")) {
-            containerFile.put("stop", result.getEndTime());
             afters.add(currentStep);
         }
         
@@ -365,22 +362,61 @@ public class AllureTestController extends GenericController {
         if ((!befores.isEmpty() || !afters.isEmpty()) && !children.isEmpty()) {
             
             containerFile.put("children", children);
-            containerFile.put("befores", befores);
-            containerFile.put("afters", afters);
-
             ObjectMapper mapper = new ObjectMapper();
 
-            try {
-                String jsonString = mapper.writeValueAsString(containerFile);
+            if (!isContainer()) {
+                containerFile.put("befores", befores);
+                containerFile.put("afters", afters);
+    
+                try {
+                    String jsonString = mapper.writeValueAsString(containerFile);
+    
+                    if (isDebugMode()) {
+                        jsonString = formatJson(jsonString);
+                    }
+    
+                    writeToFile(getPathToResults(), containerId + "-container.json", jsonString, false);
+                } catch (IOException ex) {
+                    log.error("Failed to write container file.", ex);
+                }
+            } else {
+                if (!befores.isEmpty()) {
+                    containerId = "0000a" + containerId.substring(5);
+                    containerFile.put("uuid", containerId);
+                    containerFile.put("befores", befores);
 
-                if (isDebugMode()) {
-                    jsonString = formatJson(jsonString);
+                    try {
+                        String jsonString = mapper.writeValueAsString(containerFile);
+        
+                        if (isDebugMode()) {
+                            jsonString = formatJson(jsonString);
+                        }
+        
+                        writeToFile(getPathToResults(), containerId + "-container.json", jsonString, false);
+                    } catch (IOException ex) {
+                        log.error("Failed to write container file.", ex);
+                    }
                 }
 
-                writeToFile(getPathToResults(), containerId + "-container.json", jsonString, false);
-            } catch (IOException ex) {
-                log.error("Failed to write container file.", ex);
-            }
+                if (!afters.isEmpty()) {
+                    containerId = "zzzzz" + containerId.substring(5);
+                    containerFile.put("uuid", containerId);
+                    containerFile.remove("befores");
+                    containerFile.put("afters", afters);
+
+                    try {
+                        String jsonString = mapper.writeValueAsString(containerFile);
+        
+                        if (isDebugMode()) {
+                            jsonString = formatJson(jsonString);
+                        }
+        
+                        writeToFile(getPathToResults(), containerId + "-container.json", jsonString, false);
+                    } catch (IOException ex) {
+                        log.error("Failed to write container file.", ex);
+                    }
+                }
+            } 
         }
     }
 
@@ -498,22 +534,44 @@ public class AllureTestController extends GenericController {
     private String getStepState(SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
         
-        if (stepState.equals("before")) {
-            for (AssertionResult assertionResult : assertionResults) {
-                String name = assertionResult.getName();
-                if (name.startsWith("(F) before")) {
-                    return stepState;
+        if (!isContainer()) {
+            if (stepState.equals("before")) {
+                for (AssertionResult assertionResult : assertionResults) {
+                    String name = assertionResult.getName();
+                    if (name.startsWith("(F) before")) {
+                        return stepState;
+                    }
                 }
             }
-        }
-
-        if (stepState.equals("after")) {
-            return stepState;
+    
+            if (stepState.equals("after")) {
+                return stepState;
+            } else {
+                for (AssertionResult assertionResult : assertionResults) {
+                    String name = assertionResult.getName();
+                    if (name.startsWith("(F) after")) {
+                        return stepState = "after";
+                    }
+                }
+            }
         } else {
-            for (AssertionResult assertionResult : assertionResults) {
-                String name = assertionResult.getName();
-                if (name.startsWith("(F) after")) {
-                    return stepState = "after";
+            if (stepState.equals("before")) {
+                for (AssertionResult assertionResult : assertionResults) {
+                    String name = assertionResult.getName();
+                    if (name.startsWith("(F) BEFORE")) {
+                        return stepState;
+                    }
+                }
+            }
+    
+            if (stepState.equals("after")) {
+                return stepState;
+            } else {
+                for (AssertionResult assertionResult : assertionResults) {
+                    String name = assertionResult.getName();
+                    if (name.startsWith("(F) AFTER")) {
+                        return stepState = "after";
+                    }
                 }
             }
         }
