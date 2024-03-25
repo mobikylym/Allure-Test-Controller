@@ -59,12 +59,15 @@ public class AllureTestController extends GenericController {
 
     final String PASSED = "passed";
     final String FAILED = "failed";
+    final String BROKEN = "broken";
+    final String UNKNOWN = "unknown";
 
     private String testFileId = UUID.randomUUID().toString();
     private Map<String, Object> testFile = new HashMap<>();
     private List<Map<String, Object>> steps = new ArrayList<>();
     private String historyId = "";
     private String testStatus = PASSED;
+    private String stepStatus = PASSED;
     private String testFailureMessage = "";
     private Map<Integer, Boolean> processedSamplers = new HashMap<>();
 
@@ -184,15 +187,10 @@ public class AllureTestController extends GenericController {
             if (!processedSamplers.containsKey(samplerHash)) {
                 if (sampler instanceof HTTPSamplerProxy || !isWithoutNonHTTP() || (!result.isSuccessful() && isCriticalTest())) {
                     String stepFailureMessage = (result.getFirstAssertionFailureMessage() == null) ? "" : result.getFirstAssertionFailureMessage();
+                    getStatuses(result, stepFailureMessage);
 
                     if (getStepState(result).matches("step")) {
                         if (!isContainer()) {
-                            if (!result.isSuccessful() && testStatus.equals(PASSED)) {
-                                testStatus = FAILED;
-                                testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
-                                (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
-                            }
-        
                             if (!isSingleStepTest()) {
                                 continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
                             } else {
@@ -200,7 +198,7 @@ public class AllureTestController extends GenericController {
     
                                 startFileMaking(getTestId(result.getSampleLabel()), filePrefix, historyId, result.getStartTime(), getTestNameField(result.getSampleLabel()), sampler.getComment(), ctx.getThread().getThreadName());
                                 continueFileMaking(filePrefix, stepFailureMessage, sampler, result);
-                                stopFileMaking(filePrefix, result.getEndTime(), (result.isSuccessful()) ? PASSED : FAILED, (result.isSuccessful()) ? "" : 
+                                stopFileMaking(filePrefix, result.getEndTime(), stepStatus, (result.isSuccessful()) ? "" : 
                                 ("First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" + (result.getFirstAssertionFailureMessage() == null ?
                                 "See the attachments." : ("Assertion failure message: " + stepFailureMessage))));
                             }
@@ -273,7 +271,6 @@ public class AllureTestController extends GenericController {
             steps = new ArrayList<>();
         }
 
-        String stepStatus = (result.isSuccessful()) ? PASSED : FAILED;
         Map<String, Object> currentStep = new HashMap<>();
 
         currentStep.put("name", getTestNameField(result.getSampleLabel()).trim());
@@ -310,7 +307,7 @@ public class AllureTestController extends GenericController {
         testFile.put("stop", stopTime);
         testFile.put("status", status);
 
-        if (status.equals(FAILED)) {
+        if (!status.equals(PASSED)) {
             Map<String, Object> statusDetails = new HashMap<>();
             statusDetails.put("message", failureMessage);
             testFile.put("statusDetails", statusDetails);
@@ -528,6 +525,48 @@ public class AllureTestController extends GenericController {
     
         if (!results.isEmpty()) {
             resultsTo.put("steps", results);
+        }
+    }
+
+    private void getStatuses(SampleResult result, String stepFailureMessage) {
+        if (!result.isSuccessful()){
+            AssertionResult[] assertionResults = result.getAssertionResults();
+            for (AssertionResult assertionResult : assertionResults) {
+                String name = assertionResult.getName();
+    
+                if (name.startsWith("(F)") || (!assertionResult.isFailure() && !assertionResult.isError())) {
+                    continue;
+                }
+
+                if (name.matches(".*\\[broken\\]\\s*$")) {
+                    if (testStatus.equals(PASSED) && getStepState(result).matches("step")) {
+                        testStatus = BROKEN;
+                        testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                        (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
+                    }
+                    stepStatus = BROKEN;
+                    return;
+                } else 
+                if (name.matches(".*\\[unknown\\]\\s*$")) {
+                    if (testStatus.equals(PASSED) && getStepState(result).matches("step")) {
+                        testStatus = UNKNOWN;
+                        testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                        (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
+                    }
+                    stepStatus = UNKNOWN;
+                    return;
+                } else {
+                    if (testStatus.equals(PASSED) && getStepState(result).matches("step")) {
+                        testStatus = FAILED;
+                        testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                        (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
+                    }
+                    stepStatus = FAILED;
+                    return;
+                }
+            }
+        } else {
+            stepStatus = PASSED;
         }
     }
 

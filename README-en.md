@@ -85,7 +85,10 @@ The plugin also supports additional step attributes implemented outside the cont
 ![Step attachments](./img/step_attachments.jpg)  
 
 - **Preconditions/Postconditions**: The “Name” field of the assertion should start with “(F) before” or “(F) after” (case sensitive) to indicate that this step is a precondition or postcondition, respectively. ATTENTION! These types of steps DO NOT enter the body of the test and do not affect the result of its passage. That is, if all the errors that occurred during the test are only in the steps marked as precondition/postcondition, then the test itself is considered successfully completed. It is also important that if the first sampler inside the controller was not marked as a precondition, then in subsequent steps this assertion will be ignored - preconditions can only be specified at the beginning of the test. After the first step marked as a postcondition, all subsequent steps until the end of the test will automatically be marked as postconditions regardless of the presence of a statement - postconditions when specified should complete the test.  
-![Preconditions/Postconditions](./img/conditions.jpg)
+![Preconditions/Postconditions](./img/conditions.jpg)  
+
+- **Assertion failure status**: By default, any failed assertion changes the status of the appropriate step/test in the report to "failed". If you need to use a different status in case of verification failure, then you can directly specify which status to use. To do this, the "Name" field of the assertion should NOT start with "(F)", but should end with "\[broken\]" or "\[unknown\]". This will mean that if this assertion is the first failed for this step, then the status of the step will change to the specified one. If at the same time it is also the first failed test, then the entire test case will also receive this status. ATTENTION! The status of the assertion will not change in this case - it can be either true (passed) or false (failed). Possible use case: if we assume that any error 422 can only be related to changes in the project API, then any test with such an error can be considered broken, since it needs to be finalized. Then an assertion with a check for this status code can be placed in a test plan or a group of threads and configured as follows:  
+![Custom statuses](./img/step_custom_status.jpg)
 
 [back](#contents)
 
