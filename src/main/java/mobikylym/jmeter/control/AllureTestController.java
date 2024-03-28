@@ -555,16 +555,15 @@ public class AllureTestController extends GenericController {
                     }
                     stepStatus = UNKNOWN;
                     return;
-                } else {
-                    if (testStatus.equals(PASSED) && getStepState(result).matches("step")) {
-                        testStatus = FAILED;
-                        testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
-                        (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
-                    }
-                    stepStatus = FAILED;
-                    return;
-                }
+                } 
+            } 
+            if (testStatus.equals(PASSED) && getStepState(result).matches("step")) {
+                testStatus = FAILED;
+                testFailureMessage = "First error on step \"" + getTestNameField(result.getSampleLabel()) + "\".\n" +
+                (result.getFirstAssertionFailureMessage() == null ? "See the attachments." : ("Assertion failure message: " + stepFailureMessage));
             }
+            stepStatus = FAILED;
+            return;
         } else {
             stepStatus = PASSED;
         }
@@ -572,45 +571,25 @@ public class AllureTestController extends GenericController {
 
     private String getStepState(SampleResult result) {
         AssertionResult[] assertionResults = result.getAssertionResults();
+        String beforeString = isContainer() ? "(F) BEFORE" : "(F) before";
+        String afterString = isContainer() ? "(F) AFTER" : "(F) after";
         
-        if (!isContainer()) {
-            if (stepState.equals("before")) {
-                for (AssertionResult assertionResult : assertionResults) {
-                    String name = assertionResult.getName();
-                    if (name.startsWith("(F) before")) {
-                        return stepState;
-                    }
+        if (stepState.equals("before")) {
+            for (AssertionResult assertionResult : assertionResults) {
+                String name = assertionResult.getName();
+                if (name.startsWith(beforeString)) {
+                    return stepState;
                 }
             }
-    
-            if (stepState.equals("after")) {
-                return stepState;
-            } else {
-                for (AssertionResult assertionResult : assertionResults) {
-                    String name = assertionResult.getName();
-                    if (name.startsWith("(F) after")) {
-                        return stepState = "after";
-                    }
-                }
-            }
+        }
+
+        if (stepState.equals("after")) {
+            return stepState;
         } else {
-            if (stepState.equals("before")) {
-                for (AssertionResult assertionResult : assertionResults) {
-                    String name = assertionResult.getName();
-                    if (name.startsWith("(F) BEFORE")) {
-                        return stepState;
-                    }
-                }
-            }
-    
-            if (stepState.equals("after")) {
-                return stepState;
-            } else {
-                for (AssertionResult assertionResult : assertionResults) {
-                    String name = assertionResult.getName();
-                    if (name.startsWith("(F) AFTER")) {
-                        return stepState = "after";
-                    }
+            for (AssertionResult assertionResult : assertionResults) {
+                String name = assertionResult.getName();
+                if (name.startsWith(afterString)) {
+                    return stepState = "after";
                 }
             }
         }
@@ -641,48 +620,58 @@ public class AllureTestController extends GenericController {
         AssertionResult[] assertionResults = result.getAssertionResults();
         List<Map<String, Object>> attachments = new ArrayList<>();
         StringBuilder allAttachments = new StringBuilder();
-
+    
         if (!isWithoutContent() || (isCriticalTest() && !result.isSuccessful())) {
+            String requestContentType = "text/plain";
+            String responseContentType = "text/plain";
+            String requestData = sampler instanceof HTTPSamplerProxy ? formatRequestData(result) : result.getSamplerData().toString();
+            String responseData = sampler instanceof HTTPSamplerProxy ? formatResponseData(result) : result.getResponseDataAsString();
+    
             try {
-                if (sampler instanceof HTTPSamplerProxy) {
-                    writeToFile(getPathToResults(), uuid + "-request-attachment", formatRequestData(result), false);
-                    writeToFile(getPathToResults(), uuid + "-response-attachment", formatResponseData(result), false);
-                } else {
-                    writeToFile(getPathToResults(), uuid + "-request-attachment", result.getSamplerData().toString(), false);
-                    writeToFile(getPathToResults(), uuid + "-response-attachment", result.getResponseDataAsString(), false);
-                }
+                writeToFile(getPathToResults(), uuid + "-request-attachment", requestData, false);
+                writeToFile(getPathToResults(), uuid + "-response-attachment", responseData, false);
             } catch (IOException ex) {
                 log.error("Failed to write request or response file.", ex);
             }
 
-            Map<String, Object> requestAttachment = new HashMap<>();
-            requestAttachment.put("name", "Request");
-            requestAttachment.put("source", uuid + "-request-attachment");
-            requestAttachment.put("type", "application/json");
-            attachments.add(requestAttachment);
-
-            Map<String, Object> responseAttachment = new HashMap<>();
-            responseAttachment.put("name", "Response");
-            responseAttachment.put("source", uuid + "-response-attachment");
-            responseAttachment.put("type", "application/json");
-            attachments.add(responseAttachment);
+            if (sampler instanceof HTTPSamplerProxy) {
+                requestContentType = getResponseContentType(result.getRequestHeaders().toString().toLowerCase());
+                responseContentType = result.getMediaType().contains("json") ? "application/json" : result.getMediaType().contains("xml") ? "application/xml" : "text/plain";
+            }
+    
+            attachments.add(createAttachment("Request", uuid + "-request-attachment", requestContentType));
+            attachments.add(createAttachment("Response", uuid + "-response-attachment", responseContentType));
         }
     
         for (AssertionResult assertionResult : assertionResults) {
             String name = assertionResult.getName().replace("\"", "\\\"");
             if (name.startsWith("(F) attach:")) {
-                String attach = name.replaceAll("\\(F\\) attach:", "").trim();
-                allAttachments.append(attach.trim()).append("\n");
+                allAttachments.append(name.replaceAll("\\(F\\) attach:", "").trim()).append("\n");
             }
         }
-
+    
         if (allAttachments.length() > 0) {
             attachConstructor(attachments, allAttachments.toString());
-        } 
-
+        }
+    
         if (!attachments.isEmpty()) {
             attachTo.put("attachments", attachments);
         }
+    }
+
+    private String getResponseContentType(String headers) {
+        Pattern pattern = Pattern.compile("content-type:([^\\n]+)");
+        Matcher matcher = pattern.matcher(headers);
+
+        if (matcher.find()) {
+            String contentType = matcher.group(1);
+            if (contentType.contains("json")) {
+                return "application/json";
+            } else if (contentType.contains("xml")) {
+                return "application/xml";
+            }
+        }
+        return "text/plain";
     }
 
     //
@@ -827,10 +816,11 @@ public class AllureTestController extends GenericController {
     //
     // Test id
     //
-
     public String getTestId(String testNameString) {
-        if (testNameString.matches("\\d+\\s*-.+")) {
-            return testNameString.split("-")[0].trim();
+        Pattern pattern = Pattern.compile("^\\[(.*?)\\]");
+        Matcher matcher = pattern.matcher(testNameString.trim());
+        if (matcher.find()) {
+            return matcher.group(1);
         } else {
             return "";
         }
@@ -844,7 +834,7 @@ public class AllureTestController extends GenericController {
     }
 
     public String getTestNameField(String testNameString) {
-        return testNameString.replaceFirst("^\\d+\\s*-\\s*", "");
+        return testNameString.trim().replaceFirst("^\\[(.*?)\\]\\s*", "");
     }
 
     //
@@ -1042,20 +1032,23 @@ public class AllureTestController extends GenericController {
 
     private void attachConstructor(List<Map<String, Object>> attachments, String attach) {
         String[] lines = attach.split("\n");
-    
         Pattern pattern = Pattern.compile("[^,]+,[^,]+,[^,]+");
     
         for (String line : lines) {
             Matcher matcher = pattern.matcher(line);
             if (matcher.matches()) {
                 String[] parts = line.split(",");
-                Map<String, Object> attachment = new HashMap<>();
-                attachment.put("name", parts[0].trim());
-                attachment.put("source", parts[1].trim());
-                attachment.put("type", parts[2].trim());
-                attachments.add(attachment);
+                attachments.add(createAttachment(parts[0].trim(), parts[1].trim(), parts[2].trim()));
             }
         }
+    }
+    
+    private Map<String, Object> createAttachment(String name, String source, String type) {
+        Map<String, Object> attachment = new HashMap<>();
+        attachment.put("name", name);
+        attachment.put("source", source);
+        attachment.put("type", type);
+        return attachment;
     }
 
     //
@@ -1073,29 +1066,25 @@ public class AllureTestController extends GenericController {
         List<Map<String, Object>> labelArray = new ArrayList<>();
 
         addLabel(labelArray, "severity", getSeverity());
-        if (!testId.matches("\\s*")) {
-            addLabel(labelArray, "allure_id", testId);
-        }
+        addLabelIfNotEmpty(labelArray, "allure_id", testId);
         addLabelIfNotEmpty(labelArray, "epic", getEpicField());
         addLabelIfNotEmpty(labelArray, "feature", getFeatureField());
         addLabelIfNotEmpty(labelArray, "story", getStoryField());
         addLabelIfNotEmpty(labelArray, "owner", getOwnerField());
 
-        String tags = getTagsField();
-        String[] values = tags.split(",");
+        String[] tags = getTagsField().split(",");
         Pattern pattern1 = Pattern.compile("\\s*");
 
-        for (String value : values) {
+        for (String value : tags) {
             if (!pattern1.matcher(value).matches()) {
                 addLabel(labelArray, "tag", value);
             }
         }
 
-        String extraLabels = getExtraLabelsField();
-        String[] lines = extraLabels.split("\n");
+        String[] extraLabels = getExtraLabelsField().split("\n");
         Pattern pattern2 = Pattern.compile("[^,]+,[^,]+");
 
-        for (String line : lines) {
+        for (String line : extraLabels) {
             Matcher matcher = pattern2.matcher(line);
             if (matcher.matches()) {
                 String[] parts = line.split(",");
