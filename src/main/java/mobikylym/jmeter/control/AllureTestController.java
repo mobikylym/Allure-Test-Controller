@@ -203,7 +203,7 @@ public class AllureTestController extends GenericController {
                                 "See the attachments." : ("Assertion failure message: " + stepFailureMessage))));
                             }
         
-                            if (isCriticalTest() && testStatus.equals(FAILED)) {
+                            if (isCriticalTest() && !testStatus.equals(PASSED)) {
                                 if (!isSingleStepTest()) {
                                     stopFileMaking(testFileId, System.currentTimeMillis(), testStatus, testFailureMessage);
                                 } else {
