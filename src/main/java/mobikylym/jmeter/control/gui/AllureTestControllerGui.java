@@ -34,8 +34,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
     private JCheckBox withoutNonHTTP = new JCheckBox("Without non-HTTP steps  ", false); //Without non-HTTP steps
     private JCheckBox isContainer = new JCheckBox("Container  ", false); //Container
     private JCheckBox debugMode = new JCheckBox("Debug mode  ", false); //Debug mode
-    private JTextField testName = new JTextField(); //Test
-    private JTextField description = new JTextField(); //Description
     private JComboBox<String> severity = new JComboBox<>(new String[] {"blocker", "critical", "normal", "minor", "trivial"}); //Severity
     private JTextField epic = new JTextField(); //Epic
     private JTextField story = new JTextField(); //Story
@@ -80,8 +78,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         withoutNonHTTP.setSelected(false);
         isContainer.setSelected(false);
         debugMode.setSelected(false);
-        testName.setText("");
-        description.setText("");
         severity.setSelectedItem("normal");
         severity.setEditable(true);
         epic.setText("");
@@ -109,8 +105,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             obj.setProperty(AllureTestController.ATC_WITHOUT_NON_HTTP, withoutNonHTTP.isSelected());
             obj.setProperty(AllureTestController.ATC_IS_CONTAINER, isContainer.isSelected());
             obj.setProperty(AllureTestController.ATC_DEBUG_MODE, debugMode.isSelected());
-            obj.setProperty(AllureTestController.ATC_TEST_NAME, testName.getText());
-            obj.setProperty(AllureTestController.ATC_DESCRIPTION, description.getText());
             obj.setProperty(AllureTestController.ATC_SEVERITY, (String) severity.getEditor().getItem());            
             obj.setProperty(AllureTestController.ATC_EPIC, epic.getText());
             obj.setProperty(AllureTestController.ATC_STORY, story.getText());
@@ -136,8 +130,6 @@ public class AllureTestControllerGui extends AbstractControllerGui {
         withoutNonHTTP.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_WITHOUT_NON_HTTP));
         isContainer.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_IS_CONTAINER));
         debugMode.setSelected(element.getPropertyAsBoolean(AllureTestController.ATC_DEBUG_MODE));
-        testName.setText(element.getPropertyAsString(AllureTestController.ATC_TEST_NAME));
-        description.setText(element.getPropertyAsString(AllureTestController.ATC_DESCRIPTION));
         severity.setSelectedItem(element.getPropertyAsString(AllureTestController.ATC_SEVERITY));
         epic.setText(element.getPropertyAsString(AllureTestController.ATC_EPIC));
         story.setText(element.getPropertyAsString(AllureTestController.ATC_STORY));
@@ -244,46 +236,14 @@ public class AllureTestControllerGui extends AbstractControllerGui {
             }
         });
 
-        JLabel nameLabel = new JLabel("Test name: ", JLabel.RIGHT);
+        JLabel severityLabel = new JLabel("Severity: ", JLabel.RIGHT);
         labelConstraints.gridx = 0;
         labelConstraints.gridy = checkBoxConstraints.gridy + 1;
-        mainPanel.add(nameLabel, labelConstraints);
-
-        editConstraints.gridy = labelConstraints.gridy;
-        editConstraints.gridwidth = 8;
-        mainPanel.add(testName, editConstraints);
-
-        JLabel descLabel = new JLabel("Description: ", JLabel.RIGHT);
-        labelConstraints.gridy ++;
-        mainPanel.add(descLabel, labelConstraints);
-
-        editConstraints.gridy ++;
-        mainPanel.add(description, editConstraints);
-
-        isSingleStep.addItemListener(evt -> {
-            if (evt.getStateChange() == ItemEvent.SELECTED) {
-
-                testName.setEnabled(false);
-                testName.setText("Same as sampler name");
-                description.setEnabled(false);
-                description.setText("Same as sampler comment");
-
-            } else {
-
-                testName.setEnabled(true);
-                testName.setText("");
-                description.setEnabled(true);
-                description.setText("");
-
-            }
-        });
-
-        JLabel severityLabel = new JLabel("Severity: ", JLabel.RIGHT);
-        labelConstraints.gridy ++;
         mainPanel.add(severityLabel, labelConstraints);
 
         severity.setEditable(true);
-        editConstraints.gridy ++;
+        editConstraints.gridy = labelConstraints.gridy;
+        editConstraints.gridwidth = 8;
         mainPanel.add(severity, editConstraints);
 
         JLabel epicLabel = new JLabel("Epic: ", JLabel.RIGHT);

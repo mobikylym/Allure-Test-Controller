@@ -41,8 +41,6 @@ public class AllureTestController extends GenericController {
     public static final String ATC_WITHOUT_NON_HTTP = "AllureTestController.withoutNonHTTP";
     public static final String ATC_IS_CONTAINER = "AllureTestController.isContainer";
     public static final String ATC_DEBUG_MODE = "AllureTestController.debugMode";
-    public static final String ATC_TEST_NAME = "AllureTestController.testName";
-    public static final String ATC_DESCRIPTION = "AllureTestController.description";
     public static final String ATC_SEVERITY = "AllureTestController.severity";
     public static final String ATC_EPIC = "AllureTestController.epic";
     public static final String ATC_STORY = "AllureTestController.story";
@@ -103,28 +101,28 @@ public class AllureTestController extends GenericController {
                 return null;
             }
 
+            if (!getEnvironment().trim().isEmpty()) {
+                try {
+                    writeToFile(getPathToResults(), "environment.properties", getEnvironment().trim(), false);
+                } catch (IOException ex) {
+                    log.error("Failed to write environment file.", ex);
+                }
+            }
+
+            File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().trim() + 
+            " " + this.getName().trim()).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim());
+            if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
+                try {
+                    List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
+                    if (lines.get(0).equals("true")) {
+                        return null;
+                    }
+                } catch (IOException e) {
+                    log.error("Error reading the file: " + e.getMessage());
+                }
+            }
+
             if (!isContainer()) {
-                if (!getEnvironment().trim().isEmpty()) {
-                    try {
-                        writeToFile(getPathToResults(), "environment.properties", getEnvironment().trim(), false);
-                    } catch (IOException ex) {
-                        log.error("Failed to write environment file.", ex);
-                    }
-                }
-    
-                File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
-                " " + (isSingleStepTest() ? this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim())).trim());
-                if (file.exists() && JMeterUtils.getPropDefault("allure.retry.fallen", "false").equals("true")) {
-                    try {
-                        List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
-                        if (lines.get(0).equals("true")) {
-                            return null;
-                        }
-                    } catch (IOException e) {
-                        log.error("Error reading the file: " + e.getMessage());
-                    }
-                }
-    
                 if (!isSingleStepTest()) {
                     if (file.exists()) {
                         try {
@@ -141,7 +139,7 @@ public class AllureTestController extends GenericController {
                         historyId = UUID.randomUUID().toString();
                     }
                     children.add(testFileId);
-                    startFileMaking(getTestId(getPropertyAsString(ATC_TEST_NAME)), testFileId, historyId, System.currentTimeMillis(), getTestNameField(getPropertyAsString(ATC_TEST_NAME)), getDescriptionField(), ctx.getThread().getThreadName());
+                    startFileMaking(getTestId(this.getName()), testFileId, historyId, System.currentTimeMillis(), getTestNameField(this.getName()), this.getComment(), ctx.getThread().getThreadName());
                 }
             } else {
                 try {
@@ -161,8 +159,8 @@ public class AllureTestController extends GenericController {
         if (sampler != null && !isFirst()) {
             int samplerHash = result.hashCode();
             if (isSingleStepTest() && getStepState(result).matches("step")) {
-                File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
-                " " + sampler.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim());
+                File file = new File(getLastTryFolder(), (ctx.getThread().getThreadName().trim() + 
+                " " + sampler.getName().trim()).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim());
                 if (file.exists()) {
                     try {
                         List<String> lines = FileUtils.readLines(file, StandardCharsets.UTF_8);
@@ -208,8 +206,8 @@ public class AllureTestController extends GenericController {
                                     stopFileMaking(testFileId, System.currentTimeMillis(), testStatus, testFailureMessage);
                                 } else {
                                     try {
-                                        writeToFile(getLastTryFolder(), (ctx.getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
-                                        " " + this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim(), "false", false);
+                                        writeToFile(getLastTryFolder(), (ctx.getThread().getThreadName().trim() + 
+                                        " " + this.getName().trim()).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), "false", false);
                                     } catch (IOException ex) {
                                         log.error("Failed to write last result file.", ex);
                                     }
@@ -242,8 +240,8 @@ public class AllureTestController extends GenericController {
             }
         } else {
             try {
-                writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + 
-                " " + this.getName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim()).trim(), testStatus.equals(PASSED) ? "true" : "false", false);
+                writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().trim() + 
+                " " + this.getName().trim()).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), testStatus.equals(PASSED) ? "true" : "false", false);
             } catch (IOException ex) {
                 log.error("Failed to write last result file.", ex);
             }
@@ -329,9 +327,9 @@ public class AllureTestController extends GenericController {
             }
 
             writeToFile(getPathToResults(), uuid + "-result.json", jsonString, false);
-            writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + " " +
-            ((isSingleStepTest()) ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() : 
-            getPropertyAsString(ATC_TEST_NAME).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim())).trim(), ((status.equals(PASSED)) ? "true" : "false") + "\n" + historyId, false);
+            writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().trim() + " " +
+            (isSingleStepTest() ? JMeterContextService.getContext().getPreviousResult().getSampleLabel().trim() : 
+            this.getName().trim())).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), ((status.equals(PASSED)) ? "true" : "false") + "\n" + historyId, false);
             
             writeToFile(getLastTryFolder(), JMeterContextService.getContext().getThread().getThreadName()
             .replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim() + " -container", uuid + "\n", true);
@@ -353,6 +351,13 @@ public class AllureTestController extends GenericController {
                 }
             } catch (IOException ex) {
                 log.error("Error reading the container file: " + ex.getMessage());
+            }
+
+            try {
+                writeToFile(getLastTryFolder(), (JMeterContextService.getContext().getThread().getThreadName().trim() + " " +
+                this.getName().trim()).replaceAll("[\\*\\?\\\\\\/\\<\\>\\:\\|\"]", "").trim(), ((testStatus.equals(PASSED)) ? "true" : "false"), false);
+            } catch (IOException ex) {
+                log.error("Failed to write result file.", ex);
             }
         }
 
@@ -731,7 +736,7 @@ public class AllureTestController extends GenericController {
     }
 
     public File getLastTryFolder() {
-        File folder = new File(getPropertyAsString(ATC_PATH_TO_RESULTS), "last-try-results");
+        File folder = new File(getPropertyAsString(ATC_PATH_TO_RESULTS), ".last-try-results");
 
         return folder;
     }
@@ -829,23 +834,8 @@ public class AllureTestController extends GenericController {
     //
     // Test name
     //
-    public void setTestNameField(String te) {
-        setProperty(ATC_TEST_NAME, te);
-    }
-
     public String getTestNameField(String testNameString) {
         return testNameString.trim().replaceFirst("^\\[(.*?)\\]\\s*", "");
-    }
-
-    //
-    // Description
-    //
-    public void setDescriptionField(String de) {
-        setProperty(ATC_DESCRIPTION, de);
-    }
-
-    public String getDescriptionField() {
-        return getPropertyAsString(ATC_DESCRIPTION);
     }
 
     //

@@ -26,13 +26,15 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
 
 
 ## Description of controller attributes and their application:
+- **Name + Comments**: The fields are used to specify the name and description of the test case, respectively. ATTENTION! The "Name" field can also contain, if necessary, the id of the associated case when using Allure TMS. To indicate the connection, you must specify the case id from TMS in square brackets before the name of the test, followed by the name of the case (for example, "\[1425\] Authorization with a personal account").
+
 - **Results folder path**: Specifies the path to the folder with test results. The only field that must be filled in. You can use the "Browse..." button to specify the path. ATTENTION! Do not specify the final folder here, only the path to it. In the specified directory, a folder "allure-results" will be created, into which the test results will fall.
   
 - **Overwrite folder**: If set, the folder specified by the path from "Results folder path" will be cleared before the controller is executed. It is recommended to use only for the first controller inside Thread Group if you use only one thread group inside the scenario. If you use several thread groups, then you should use the checkbox only before the start of testing. For example, inside SetUp Thread Group.
   
 - **Stop test on error**: If set, it stops the thread if any of the samplers inside the controller is executed with an error.
   
-- **Single step tests**: If set, it changes the logic of forming results: each sampler inside the controller will be considered a separate test with its name and description, which will be taken from the name and description of the sampler. The other fields will be common for all tests in the controller (severity, epic, etc.).
+- **Single step tests**: If set, it changes the logic of forming results: each sampler inside the controller will be considered a separate test with its name and description, which will be taken from the name and description of the sampler. The other fields will be common for all tests in the controller (severity, epic, etc.). Specifying the test id is supported, similar to the "Name" field of the controller.
   
 - **Without content**: If set, attached files with request and response details will no longer be formed for test steps in the report. ATTENTION! If the "Stop test on error" checkbox is set, attached files will still be formed for the step with an error so that you can see the cause of the error.
   
@@ -41,8 +43,6 @@ JMeter has a built-in flexible mechanism for generating test reports. However, i
 - **Container**: Switches the controller to container mode to specify preconditions and/or postconditions for an entire scenario or group of tests. [More details](#container-mode)
 
 - **Debug mode**: If set, nothing will change in the report, but the .json file with test results will acquire a readable look. The function is needed only for manual checking of results.
-  
-- **Test name + Description**: The name of the test case and its description. If the "Single step tests" checkbox is set, these fields become unavailable for filling, because then each sampler inside the controller will have its name and description. ATTENTION! The "Test name" field can also contain, if necessary, the id of the associated case when using Allure TMS. To indicate the connection, it is necessary to specify the case id from TMS in square brackets before the name of the test, followed by the name of the case (for example, “\[1425\] Authorization with a personal account”). This functionality also works when using the “Single step tests” checkbox.
   
 - **Severity**: Indicates the severity of the test case. By default in Allure, the options are: "trivial", "minor", "normal", "critical" and "blocker". Free input is available. If you leave the field empty, "normal" will be indicated.
   
@@ -127,7 +127,7 @@ For each step, the plugin analyzes all nested assertions and outputs them in the
 
 # Selective retest mechanism
 
-In addition to saving the report for Allure, the plugin also saves the results of each individual test in the “last-try-results” folder, which is automatically created in the same location as the “allure-results” folder. You can configure the scenario in such a way that it skips all tests that were successful last time when launched. 
+In addition to saving the report for Allure, the plugin also saves the results of each individual test in the “.last-try-results” folder, which is automatically created in the same location as the “allure-results” folder. You can configure the scenario in such a way that it skips all tests that were successful last time when launched. 
 The configuration is done through the JMeter property “allure.retry.fallen”. If “allure.retry.fallen” = “true”, the selective launch mechanism will work and only tests that ended with errors last time will be run again. 
 This property can be set in several ways:
 - **Write in the .properties file**: It is recommended to do this only if you always want to enable this option (“true”) by default.
