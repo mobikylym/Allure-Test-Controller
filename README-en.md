@@ -118,7 +118,7 @@ For each step, the plugin analyzes all nested assertions and outputs them in the
 
 
 ## Limitations
-1. For security purposes, when writing files with step data, the plugin automatically substitutes the “Authorization”, “X-Api-Token”, and “X-Api-Key” headers in the request with the value “XXX (Has been replaced for safety)”. This substitution is not configurable and always happens.
+1. For security purposes, when writing files with step data, the plugin automatically substitutes the “Authorization”, “X-Api-Token”, “X-Api-Key” and "X-Jwt-Assertion" headers in the request with the value “XXX (Has been replaced for safety)”. This substitution is not configurable and always happens.
 2. If you use any loop controller inside Allure Test Controller (for example, While Controller or ForEach Controller), each iteration for samplers inside the loop will create new test case steps in the report. Exception: if you use [Retry Post-Processor](https://github.com/tilln/jmeter-retrier), the step will be created only for the last attempt to execute the sampler.
 3. Try not to use Allure Test Controller inside the same controller (Exception: container mode). If the "Stop test on error" checkbox is set in the child controller and not in the parent, then in case of an error inside the child controller, the results of the parent will not appear in the report because the thread will be stopped before the results of the parent controller are written to the file.
 

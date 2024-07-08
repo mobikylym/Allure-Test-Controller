@@ -441,7 +441,8 @@ public class AllureTestController extends GenericController {
     private String formatRequestData(SampleResult result) {
         return result.getRequestHeaders().toString().replaceAll("[aA][uU][tT][hH][oO][rR][iI][zZ][aA][tT][iI][oO][nN]:.*", "Authorization: XXX (Has been replaced for safety)")
             .replaceAll("[xX]-[aA][pP][iI]-[tT][oO][kK][eE][nN]:.*", "X-Api-Token: XXX (Has been replaced for safety)")
-            .replaceAll("[xX]-[aA][pP][iI]-[kK][eE][yY]:.*", "X-Api-Key: XXX (Has been replaced for safety)") + "\n" + result.getSamplerData().toString();
+            .replaceAll("[xX]-[aA][pP][iI]-[kK][eE][yY]:.*", "X-Api-Key: XXX (Has been replaced for safety)")
+            .replaceAll("[xX]-[jJ][wW][tT]-[aA][sS]{2}[eE][rR][tT][iI][oO][nN]:.*", "X-Jwt-Assertion: XXX (Has been replaced for safety)") + "\n" + result.getSamplerData().toString();
     }
 
     private String formatResponseData(SampleResult result) {
